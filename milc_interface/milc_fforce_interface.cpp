@@ -2,7 +2,7 @@
 #include <cstdio>
 #include <cstring> // needed for memcpy
 
-#include <quda.h>        // contains initQuda
+#include <quda.h>        
 #include <dslash_quda.h> // contains initDslashConstants
 #include <hisq_force_utils.h>
 #include <fat_force_quda.h>
@@ -12,7 +12,6 @@
 #include "external_headers/quda_milc_interface.h"
 
 
-static int device = 0;
 cudaGaugeField *cudaGauge = NULL;
 cpuGaugeField *cpuGauge = NULL;
 
@@ -75,7 +74,6 @@ reorderQudaForce(const Real* const src, int volume, Real* const dst[4])
 static void
 hisqForceStartup(const int dim[4], QudaPrecision precision)
 {
-  initQuda(device);
 
   for(int dir=0; dir<4; ++dir){
     gaugeParam.X[dir] = dim[dir];
