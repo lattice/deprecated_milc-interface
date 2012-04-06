@@ -137,7 +137,7 @@ void qudaLoadFatLink(int precision, QudaFatLinkArgs_t fatlink_args, const double
       allocateColorField(volume, prec, usePinnedMemory, local_inlink[dir]);
     }
     assignQDPGaugeField(local_dim, prec, inlink, local_inlink);
-  }else if(method == QUDA_COMPUTE_FAT_EXTENDED){	
+  }else if(method == QUDA_COMPUTE_FAT_EXTENDED_VOLUME){	
     int extended_dim[4] = {local_dim[0]+4, local_dim[1]+4, local_dim[2]+4, local_dim[3]+4};
     for(int dir=0; dir<4; ++dir) allocateColorField(getVolume(extended_dim), prec, usePinnedMemory, local_inlink[dir]);
     assignExtendedQDPGaugeField(local_dim, prec, inlink, local_inlink);
@@ -226,7 +226,7 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
   if(method == QUDA_COMPUTE_FAT_STANDARD){
     for(int dir=0; dir<4; ++dir) allocateColorField(volume, prec, usePinnedMemory, local_inlink[dir]);
     assignQDPGaugeField(local_dim, prec, inlink, local_inlink);
-  }else if(method == QUDA_COMPUTE_FAT_EXTENDED){
+  }else if(method == QUDA_COMPUTE_FAT_EXTENDED_VOLUME){
     int extended_dim[4] = {local_dim[0]+4, local_dim[1]+4, local_dim[2]+4, local_dim[3]+4};
     for(int dir=0; dir<4; ++dir) allocateColorField(getVolume(extended_dim), prec, usePinnedMemory, local_inlink[dir]);
     assignExtendedQDPGaugeField(local_dim, prec, inlink, local_inlink);
