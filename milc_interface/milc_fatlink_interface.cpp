@@ -390,7 +390,7 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
     llfat_init_cuda_ex(qudaGaugeParam_ex);
 	
 #ifdef MULTI_GPU
-    exchange_cpu_sitelink_ex(param.X, (void**)cpuInLink->Gauge_p(), param.cpu_prec, 1);
+    exchange_cpu_sitelink_ex(param.X, (void**)cpuInLink->Gauge_p(), QUDA_QDP_GAUGE_ORDER, param.cpu_prec, 1);
 #endif
     qudaGaugeParam_ex->ga_pad = qudaGaugeParam_ex->site_ga_pad;
     if(param.gauge_order == QUDA_QDP_GAUGE_ORDER){ 
