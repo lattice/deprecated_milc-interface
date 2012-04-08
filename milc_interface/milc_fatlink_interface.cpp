@@ -197,6 +197,8 @@ void qudaLoadFatLink(int precision, QudaFatLinkArgs_t fatlink_args, const double
 // Otherwise, I can just copy pointers.
 void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const double path_coeff[6], void* inlink, void* fatlink, void* ulink)
 {
+  printf(" %s enters\n", __FUNCTION__);
+
   // Initialize unitarization parameters
   {
     const double unitarize_eps = 1e-6;
@@ -399,31 +401,43 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
       cudaInLink->loadCPUField(*cpuInLink, QUDA_CPU_FIELD_LOCATION);
     }
   } // Initialise and load siteLinks
-
+  printf(" %s starts to compute\n", __FUNCTION__);
   // time the subroutines in computeFatLinkCore
   struct timeval time_array[4];
   // Actually do the fattening
   computeFatLinkCore(cudaInLink, const_cast<double*>(path_coeff), &param, method, cudaFatLink, time_array);
-  cudaThreadSynchronize();
  
+  printf(" %s finished compute\n", __FUNCTION__);
 
   int* null_dev_pointer;
+  cudaMalloc((void**)&null_dev_pointer, sizeof(int));
+  if(null_dev_pointer == NULL){
+    errorQuda("cudaMalloc fialed for dev_pointer\n");
+  }
   hisq::unitarizeLinksCuda(param, *cudaFatLink, cudaUnitarizedLink, null_dev_pointer); // unitarize on the gpu
+  cudaFree(null_dev_pointer);
 
   // copy the fatlink back to the cpu
   if(fatlink != NULL){
+#ifdef MULTI_GPU
     storeLinkToCPU(cpuFatLink, cudaFatLink, &param);
-    cudaThreadSynchronize();		// WARNING - REMOVE THIS!!!!!!!!!!!!!!!
+#else
+    cudaFatLink->saveCPUField(*cpuFatLink, QUDA_CPU_FIELD_LOCATION);
+#endif
+    cudaThreadSynchronize(); checkCudaError();
     if(usePinnedMemory) copyGaugeField(volume, prec, local_fatlink, fatlink); 
   }
-  
   // copy the unitarized link back to the cpu
-  cudaThreadSynchronize();
+
+#ifdef MULTI_GPU
   storeLinkToCPU(cpuUnitarizedLink, cudaUnitarizedLink, &param); 
-  cudaThreadSynchronize();  // WARNING - REMOVE THIS!!!!!!!!!!!!
+#else
+  cudaUnitarizedLink->saveCPUField(*cpuUnitarizedLink, QUDA_CPU_FIELD_LOCATION);
+#endif
+  cudaThreadSynchronize(); checkCudaError();
   if(usePinnedMemory) copyGaugeField(volume, prec, local_ulink, ulink);
 
-  
+
   if (!(preserve_gauge & QUDA_FAT_PRESERVE_CPU_GAUGE) ){
     if(cpuFatLink){ delete cpuFatLink; cpuFatLink = NULL; } 
     delete cpuInLink; cpuInLink = NULL;
@@ -434,12 +448,12 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
     delete cudaFatLink; cudaFatLink = NULL;
     delete cudaInLink; cudaInLink = NULL;
     delete cudaUnitarizedLink; cudaUnitarizedLink = NULL;
-  }
+   }
   
-
   if(usePinnedMemory){
     if(fatlink != NULL) cudaFreeHost(local_fatlink);
     cudaFreeHost(local_ulink);
   }
+  printf(" %s returns: reducd # of syncs\n", __FUNCTION__);
   return;
 }
