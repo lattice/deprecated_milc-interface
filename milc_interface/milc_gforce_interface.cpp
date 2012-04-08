@@ -2,7 +2,7 @@
 #include <cstdio>
 #include <cstring> // needed for memcpy
 
-#include <quda.h>         // contains initQuda
+#include <quda.h>         
 #include <dslash_quda.h>  // contains initDslashConstants
 #include <gauge_field.h>  
 #include <gauge_force_quda.h> 
@@ -22,7 +22,6 @@
 // 24 from the "chair" loops.
 // 
 
-//int device=0;
 
 #include "include/utilities.h"
 

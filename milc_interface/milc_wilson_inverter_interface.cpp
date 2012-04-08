@@ -15,10 +15,7 @@
 
 #ifdef MULTI_GPU
 #include <face_quda.h>
-#endif
-
-#ifdef MPI_COMMS
-#include <mpicomm.h>
+#include <comm_quda.h>
 #endif
 
 #define MAX(a,b) ((a)>(b)?(a):(b))

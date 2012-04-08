@@ -137,7 +137,7 @@ void qudaLoadFatLink(int precision, QudaFatLinkArgs_t fatlink_args, const double
       allocateColorField(volume, prec, usePinnedMemory, local_inlink[dir]);
     }
     assignQDPGaugeField(local_dim, prec, inlink, local_inlink);
-  }else if(method == QUDA_COMPUTE_FAT_EXTENDED){	
+  }else if(method == QUDA_COMPUTE_FAT_EXTENDED_VOLUME){	
     int extended_dim[4] = {local_dim[0]+4, local_dim[1]+4, local_dim[2]+4, local_dim[3]+4};
     for(int dir=0; dir<4; ++dir) allocateColorField(getVolume(extended_dim), prec, usePinnedMemory, local_inlink[dir]);
     assignExtendedQDPGaugeField(local_dim, prec, inlink, local_inlink);
@@ -228,7 +228,7 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
   if(method == QUDA_COMPUTE_FAT_STANDARD){
     for(int dir=0; dir<4; ++dir) allocateColorField(volume, prec, usePinnedMemory, local_inlink[dir]);
     assignQDPGaugeField(local_dim, prec, inlink, local_inlink);
-  }else if(method == QUDA_COMPUTE_FAT_EXTENDED){
+  }else if(method == QUDA_COMPUTE_FAT_EXTENDED_VOLUME){
     int extended_dim[4] = {local_dim[0]+4, local_dim[1]+4, local_dim[2]+4, local_dim[3]+4};
     for(int dir=0; dir<4; ++dir) allocateColorField(getVolume(extended_dim), prec, usePinnedMemory, local_inlink[dir]);
     assignExtendedQDPGaugeField(local_dim, prec, inlink, local_inlink);
@@ -392,7 +392,7 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
     llfat_init_cuda_ex(qudaGaugeParam_ex);
 	
 #ifdef MULTI_GPU
-    exchange_cpu_sitelink_ex(param.X, (void**)cpuInLink->Gauge_p(), param.cpu_prec, 1);
+    exchange_cpu_sitelink_ex(param.X, (void**)cpuInLink->Gauge_p(), QUDA_QDP_GAUGE_ORDER, param.cpu_prec, 1);
 #endif
     qudaGaugeParam_ex->ga_pad = qudaGaugeParam_ex->site_ga_pad;
     if(param.gauge_order == QUDA_QDP_GAUGE_ORDER){ 

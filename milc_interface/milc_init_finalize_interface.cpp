@@ -5,8 +5,8 @@
 #include <iomanip>
 #include "external_headers/quda_milc_interface.h"
 
-#ifdef MPI_COMMS
-#include <mpicomm.h>
+#ifdef MULTI_GPU
+#include <comm_quda.h>
 #endif
 
 void qudaInit(QudaLayout_t input)
@@ -40,8 +40,11 @@ void qudaInit(QudaLayout_t input)
 
 
   initialized = true;
-
+#ifdef MULTI_GPU
+  static int device = -1;
+#else
   static int device = 0;
+#endif
   initQuda(device);
   printf("Initialisation complete\n");
   return;
