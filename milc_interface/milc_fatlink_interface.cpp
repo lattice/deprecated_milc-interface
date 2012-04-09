@@ -48,7 +48,6 @@ void copyGaugeField(int volume, QudaPrecision prec, void* src, void* dst)
 void assignExtendedQDPGaugeField(const int dim[4], QudaPrecision precision, void* src, void** dst)
 {
 
-
   const int matrix_size = 18*getRealSize(precision); 
   const int volume = getVolume(dim);
 
