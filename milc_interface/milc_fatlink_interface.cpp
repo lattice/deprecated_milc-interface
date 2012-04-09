@@ -372,9 +372,13 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
     gParam.reconstruct = param.reconstruct;      
     cudaInLink = new cudaGaugeField(gParam);
   }
-  
-  initCommonConstants(*cudaFatLink);
 
+#define QUDA_VER ((10000*QUDA_VERSION_MAJOR) + (100*QUDA_VERSION_MINOR) + QUDA_VERSION_SUBMINOR)
+#if (QUDA_VER > 400)
+  initLatticeConstants(*cudaFatLink);
+#else
+  initCommonConstants(*cudaFatLink);
+#endif
 
   if(method == QUDA_COMPUTE_FAT_STANDARD){
     llfat_init_cuda(&param);

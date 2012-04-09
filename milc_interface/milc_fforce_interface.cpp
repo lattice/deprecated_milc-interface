@@ -173,11 +173,15 @@ qudaHisqForce(
   QudaPrecision local_precision = (precision==1) ? QUDA_SINGLE_PRECISION : QUDA_DOUBLE_PRECISION;
   hisqForceStartup(layout.getLocalDim(), local_precision);
 
+#define QUDA_VER ((10000*QUDA_VERSION_MAJOR) + (100*QUDA_VERSION_MINOR) + QUDA_VERSION_SUBMINOR)
+#if (QUDA_VER > 400)
+  initLatticeConstants(*cudaGauge);
+  initGaugeConstants(*cudaGauge);
+#else
   initGaugeFieldConstants(*cudaGauge);
-  hisqForceInitCuda(&gaugeParam);
-
-
+#endif
    
+  hisqForceInitCuda(&gaugeParam);
 
   const double unitarize_eps = 1e-5;
   const double hisq_force_filter = 5e-5;
