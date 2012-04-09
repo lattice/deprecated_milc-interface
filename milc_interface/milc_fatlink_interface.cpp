@@ -201,12 +201,12 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
   // Initialize unitarization parameters
   {
     const double unitarize_eps = 1e-6;
-    const double max_det_error = 1e-12;
+    const double max_error = 1e-10;
     const int reunit_allow_svd = 1;
     const int reunit_svd_only  = 0;
     const double svd_rel_error = 1e-6;
     const double svd_abs_error = 1e-6;
-    hisq::setUnitarizeLinksConstants(unitarize_eps, max_det_error,
+    hisq::setUnitarizeLinksConstants(unitarize_eps, max_error,
 			       reunit_allow_svd, reunit_svd_only,
 			       svd_rel_error, svd_abs_error);
   }
@@ -412,13 +412,25 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
  
   printf(" %s finished compute\n", __FUNCTION__);
 
-  int* null_dev_pointer;
-  cudaMalloc((void**)&null_dev_pointer, sizeof(int));
-  if(null_dev_pointer == NULL){
+  int num_failures=0;
+  int* num_failures_dev;
+  cudaMalloc((void**)&num_failures_dev, sizeof(int));
+  if(num_failures_dev == NULL){
     errorQuda("cudaMalloc fialed for dev_pointer\n");
   }
-  hisq::unitarizeLinksCuda(param, *cudaFatLink, cudaUnitarizedLink, null_dev_pointer); // unitarize on the gpu
-  cudaFree(null_dev_pointer);
+  hisq::unitarizeLinksCuda(param, *cudaFatLink, cudaUnitarizedLink, num_failures_dev); // unitarize on the gpu
+
+  
+  cudaMemcpy(&num_failures, num_failures_dev, sizeof(int), cudaMemcpyDeviceToHost);
+  cudaFree(num_failures_dev); 
+
+  if(num_failures>0){
+    errorQuda("Error in the unitarization component of the hisq fattening\n"); 
+    exit(1);
+  } 
+
+
+
 
   // copy the fatlink back to the cpu
   if(fatlink != NULL){
