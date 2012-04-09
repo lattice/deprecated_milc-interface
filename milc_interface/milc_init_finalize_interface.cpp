@@ -64,7 +64,6 @@ void qudaFinalize()
 #include <fat_force_quda.h>
 #include <hisq_force_quda.h>
 #include <gauge_field.h>
-#include "include/utilities.h"
 
 #ifdef GPU_UNITARIZE
 #include <hisq_links_quda.h>
