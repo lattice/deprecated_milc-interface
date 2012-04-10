@@ -415,6 +415,8 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
   int num_failures=0;
   int* num_failures_dev;
   cudaMalloc((void**)&num_failures_dev, sizeof(int));
+  cudaMemset(num_failures_dev, 0, sizeof(int));
+
   if(num_failures_dev == NULL){
     errorQuda("cudaMalloc fialed for dev_pointer\n");
   }
