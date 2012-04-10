@@ -81,7 +81,7 @@ void qudaHisqParamsInit(QudaHisqParams_t params)
   const bool reunit_svd_only  = (params.reunit_svd_only) ? true : false;
 
 
-  const double unitarize_eps = 1e-5;
+  const double unitarize_eps = 1e-14;
   const double max_error = 1e-10;
 
 #ifdef GPU_HISQ_FORCE

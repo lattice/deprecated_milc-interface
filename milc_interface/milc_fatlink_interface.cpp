@@ -200,7 +200,7 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
 
   // Initialize unitarization parameters
   {
-    const double unitarize_eps = 1e-6;
+    const double unitarize_eps = 1e-14;
     const double max_error = 1e-10;
     const int reunit_allow_svd = 1;
     const int reunit_svd_only  = 0;
