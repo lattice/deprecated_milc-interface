@@ -739,8 +739,8 @@ void qudaInvert(int external_precision,
 
   QudaPrecision host_precision, device_precision, device_precision_sloppy;
   if(quda_precision==1){
-   host_precision  = device_precision = (use_mixed_precision) ? QUDA_HALF_PRECISION : QUDA_SINGLE_PRECISION;
-   device_precision_sloppy = QUDA_SINGLE_PRECISION;
+   host_precision = device_precision = QUDA_SINGLE_PRECISION;
+   device_precision_sloppy = (use_mixed_precision) ? QUDA_HALF_PRECISION : QUDA_SINGLE_PRECISION;
   }else if(quda_precision==2){
    host_precision = device_precision =  QUDA_DOUBLE_PRECISION;
    if(inv_args.mixed_precision == 0){
