@@ -2,7 +2,7 @@
 #include <iostream>
 #include <iomanip>
 #include <map>
-
+#include <string.h>
 
 void Layout::setLocalDim(const int X[4])
 {
