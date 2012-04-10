@@ -1,6 +1,7 @@
 #include "include/utilities.h"
 #include <iostream>
 #include <iomanip>
+#include <map>
 
 
 void Layout::setLocalDim(const int X[4])
@@ -151,4 +152,153 @@ void MilcFieldLoader::loadGaugeField(const void* const milc_field, void* quda_fi
 }
 
 
+
+//********************************************************
+// 
+// Used in the multi-gpu fattening and fermion-force code
+// 
+//********************************************************
+
+void assignExtendedQDPGaugeField(const int dim[4], QudaPrecision precision, const void* const src,  void** const dst)
+{
+
+  const int matrix_size = 18*getRealSize(precision);
+  const int volume = getVolume(dim);
+
+  int extended_dim[4];
+  for(int dir=0; dir<4; ++dir) extended_dim[dir] = dim[dir]+4;
+
+  const int extended_volume = getVolume(extended_dim);
+
+
+  const int half_dim0 = extended_dim[0]/2;
+  const int half_extended_volume = extended_volume/2;
+
+  for(int i=0; i<extended_volume; ++i){
+    int site_id = i;
+    int odd_bit = 0;
+
+    if(i >= half_extended_volume){
+      site_id -= half_extended_volume;
+      odd_bit  = 1;
+    }
+
+    int za     = site_id/half_dim0;
+    int x1h    = site_id - za*half_dim0;
+    int zb     = za/extended_dim[1];
+    int x2     = za - zb*extended_dim[1];
+    int x4     = zb/extended_dim[2];
+    int x3     = zb - x4*extended_dim[2];
+    int x1odd  = (x2 + x3 + x4 + odd_bit) & 1;
+    int x1     = 2*x1h + x1odd;
+
+
+
+    x1 = (x1 - 2 + dim[0]) % dim[0];
+    x2 = (x2 - 2 + dim[1]) % dim[1];
+    x3 = (x3 - 2 + dim[2]) % dim[2];
+    x4 = (x4 - 2 + dim[3]) % dim[3];
+
+    int full_index = (x4*dim[2]*dim[1]*dim[0] + x3*dim[1]*dim[0] + x2*dim[0] + x1)>>1;
+    if(odd_bit){ full_index += volume/2; }
+
+
+    for(int dir=0; dir<4; ++dir){
+            char* dst_ptr = (char*)dst[dir];
+            memcpy(dst_ptr + i*matrix_size, (char*)src + (full_index*4 + dir)*matrix_size, matrix_size);
+    } // end loop over directions
+  } // loop over the extended volume
+
+
+
+
+
+  // see if it makes a difference
+  return;
+} // assignExtendedQDPGaugeField
+
+
+// update boundaries (pretty inefficient).
+void updateExtendedQDPBorders(const int dim[4], QudaPrecision precision, void** const qdp_field)
+{
+
+  const int matrix_size = 18*getRealSize(precision);
+  const int volume = getVolume(dim);
+
+  int extended_dim[4];
+  for(int dir=0; dir<4; ++dir) extended_dim[dir] = dim[dir]+4;
+
+  const int extended_volume = getVolume(extended_dim);
+
+
+  const int half_dim0 = extended_dim[0]/2;
+  const int half_extended_volume = extended_volume/2;
+
+  for(int i=0; i<extended_volume; ++i){
+    int site_id = i;
+    int odd_bit = 0;
+
+    if(i >= half_extended_volume){
+      site_id -= half_extended_volume;
+      odd_bit  = 1;
+    }
+
+    int za     = site_id/half_dim0;
+    int x1h    = site_id - za*half_dim0;
+    int zb     = za/extended_dim[1];
+    int x2     = za - zb*extended_dim[1];
+    int x4     = zb/extended_dim[2];
+    int x3     = zb - x4*extended_dim[2];
+    int x1odd  = (x2 + x3 + x4 + odd_bit) & 1;
+    int x1     = 2*x1h + x1odd;
+
+
+   int y1, y2, y3, y4;
+   int y1h = x1h;
+   y1 = x1;
+   y2 = x2; 
+   y3 = x3; 
+   y4 = x4;
+   bool boundary = false;
+   if(x1 < 2 || x1 > 1+dim[0]  ){
+     y1 = ((2 + ( (x1 - 2 + dim[0]) % dim[0])));
+     y1h = y1 >> 1;
+     boundary = true;
+   } 
+
+   if(x2 < 2 || x2 > 1+dim[1] ){
+     y2 = 2 + ( (x2 - 2 + dim[1]) % dim[1]);
+     boundary = true;
+   }
+
+   if(x3 < 2 || x3 > 1+dim[2] ){
+     y3 = 2 + ( (x3 - 2 + dim[2]) % dim[2]);
+     boundary = true;
+   }
+   
+   if(x4 < 2 || x4 > 1+dim[3] ){
+     y4 = 2 + ( (x4 - 2 + dim[3]) % dim[3]);
+     boundary = true;
+   }
+
+
+   if(boundary){
+     int interior_index = (  y4*extended_dim[2]*extended_dim[1]*extended_dim[0]/2 
+			   + y3*extended_dim[1]*extended_dim[0]/2 
+			   + y2*extended_dim[0]/2
+			   + y1h 
+			   + odd_bit*half_extended_volume );
+
+
+
+      for(int dir=0; dir<4; ++dir){
+	     char* field_ptr = (char*)qdp_field[dir];
+       memcpy(field_ptr + i*matrix_size, field_ptr + interior_index*matrix_size, matrix_size);
+      }
+   } // if(boundary)
+  } // loop over the extended volume
+
+  // see if it makes a difference
+  return;
+} // updateExtendedQDPBorders
 

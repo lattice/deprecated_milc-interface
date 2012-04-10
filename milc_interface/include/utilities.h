@@ -74,4 +74,9 @@ class  MilcFieldLoader
 };
 
 
+void assignExtendedQDPGaugeField(const int dim[4], QudaPrecision precision, const void* const src, void** const dst);
+
+
+void updateExtendedQDPBorders(const int dim[4], QudaPrecision precision, void** const qdp_field);
+
 #endif // _QUDA_MILC_UTILITIES_H
