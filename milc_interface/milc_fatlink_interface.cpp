@@ -45,54 +45,6 @@ void copyGaugeField(int volume, QudaPrecision prec, void* src, void* dst)
   return;
 }
 
-void assignExtendedQDPGaugeField(const int dim[4], QudaPrecision precision, void* src, void** dst)
-{
-
-  const int matrix_size = 18*getRealSize(precision); 
-  const int volume = getVolume(dim);
-
-  int extended_dim[4];
-  for(int dir=0; dir<4; ++dir) extended_dim[dir] = dim[dir]+4;
-
-  const int extended_volume = getVolume(extended_dim);
-
-
-  const int half_dim0 = extended_dim[0]/2;
-  const int half_extended_volume = extended_volume/2;
-
-  for(int i=0; i<extended_volume; ++i){
-    int site_id = i;
-	  int odd_bit = 0;
-
-    if(i >= half_extended_volume){
-      site_id -= half_extended_volume;
-      odd_bit  = 1;
-    }
-
-    int za     = site_id/half_dim0;
-    int x1h    = site_id - za*half_dim0;
-    int zb     = za/extended_dim[1];
-    int x2     = za - zb*extended_dim[1];
-    int x4     = zb/extended_dim[2];
-    int x3     = zb - x4*extended_dim[2];
-    int x1odd  = (x2 + x3 + x4 + odd_bit) & 1;
-    int x1     = 2*x1h + x1odd;
-
-    x1 = (x1 - 2 + dim[0]) % dim[0];
-    x2 = (x2 - 2 + dim[1]) % dim[1];
-    x3 = (x3 - 2 + dim[2]) % dim[2];
-    x4 = (x4 - 2 + dim[3]) % dim[3];
-
-    int full_index = (x4*dim[2]*dim[1]*dim[0] + x3*dim[1]*dim[0] + x2*dim[0] + x1)>>1;
-    if(odd_bit){ full_index += volume/2; }
-
-    for(int dir=0; dir<4; ++dir){
-	    char* dst_ptr = (char*)dst[dir];
-	    memcpy(dst_ptr + i*matrix_size, (char*)src + (full_index*4 + dir)*matrix_size, matrix_size);
-    } // end loop over directions
-  } // loop over the extended volume
-  return;
-} // assignExtendedQDPGaugeField
 
 
 void assignQDPGaugeField(const int dim[4], QudaPrecision precision, void* src, void** dst)
