@@ -611,7 +611,7 @@ qudaHisqForce(
 
   Layout layout;
   QudaPrecision local_precision = (precision==1) ? QUDA_SINGLE_PRECISION : QUDA_DOUBLE_PRECISION;
-  hisqForceStartup(layout.getLocalDim(), local_precision, &gaugeParam, &forceParam);
+  hisqForceStartup(layout.getLocalDim(), local_precision);
 
 
 #define QUDA_VER ((10000*QUDA_VERSION_MAJOR) + (100*QUDA_VERSION_MINOR) + QUDA_VERSION_SUBMINOR)

@@ -50,7 +50,6 @@ void copyGaugeField(int volume, QudaPrecision prec, void* src, void* dst)
 void assignQDPGaugeField(const int dim[4], QudaPrecision precision, void* src, void** dst)
 {
 
-
   const int matrix_size = 18*getRealSize(precision);
   const int volume = getVolume(dim);
 
@@ -60,7 +59,7 @@ void assignQDPGaugeField(const int dim[4], QudaPrecision precision, void* src, v
 	    memcpy(dst_ptr + i*matrix_size, (char*)src + (i*4 + dir)*matrix_size, matrix_size);
     } // end loop over directions
   } // loop over the extended volume
-
+  return;
 }
 
 
