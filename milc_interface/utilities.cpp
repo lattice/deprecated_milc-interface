@@ -3,6 +3,8 @@
 #include <iomanip>
 #include <map>
 #include <cuda_runtime.h> // Needed for cudaMallocHost
+#include <string.h>
+
 
 void Layout::setLocalDim(const int X[4])
 {
