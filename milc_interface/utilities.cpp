@@ -2,7 +2,7 @@
 #include <iostream>
 #include <iomanip>
 #include <map>
-#include <string.h>
+#include <cuda_runtime.h> // Needed for cudaMallocHost
 
 void Layout::setLocalDim(const int X[4])
 {
@@ -155,9 +155,29 @@ void MilcFieldLoader::loadGaugeField(const void* const milc_field, void* quda_fi
 
 //********************************************************
 // 
-// Used in the multi-gpu fattening and fermion-force code
+// Used in the multi-gpu fattening, fermion-force, and 
+// gauge-force code
 // 
 //********************************************************
+
+
+void allocateColorField(int volume, QudaPrecision prec, bool usePinnedMemory, void*& field)
+{
+  const int realSize = getRealSize(prec);
+  int siteSize = 18;
+  if(usePinnedMemory){
+    cudaMallocHost((void**)&field, volume*siteSize*realSize);
+  }else{
+    field = (void*)malloc(volume*siteSize*realSize);
+  }
+  if(field == NULL){
+    errorQuda("ERROR: allocateColorField failed\n");
+  }
+  return;
+}
+
+
+
 
 void assignExtendedQDPGaugeField(const int dim[4], QudaPrecision precision, const void* const src,  void** const dst)
 {
@@ -223,7 +243,6 @@ void updateExtendedQDPBorders(const int dim[4], QudaPrecision precision, void** 
 {
 
   const int matrix_size = 18*getRealSize(precision);
-  const int volume = getVolume(dim);
 
   int extended_dim[4];
   for(int dir=0; dir<4; ++dir) extended_dim[dir] = dim[dir]+4;

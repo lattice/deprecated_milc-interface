@@ -407,7 +407,7 @@ void refreshExtendedQDPGaugeField(int dim[4],
 
 
 #ifdef MULTI_GPU
-
+/*
 void allocateColorField(int volume, QudaPrecision prec, bool usePinnedMemory, void*& field)
 {
   const int realSize = getRealSize(prec);
@@ -422,7 +422,7 @@ void allocateColorField(int volume, QudaPrecision prec, bool usePinnedMemory, vo
   }
   return;
 }
-
+*/
 
 
 

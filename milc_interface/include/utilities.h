@@ -74,6 +74,9 @@ class  MilcFieldLoader
 };
 
 
+// Allocate a one-dimensional color field
+void allocateColorField(int volume, QudaPrecision prec, bool usePinnedMemory, void*& field);
+
 void assignExtendedQDPGaugeField(const int dim[4], QudaPrecision precision, const void* const src, void** const dst);
 
 

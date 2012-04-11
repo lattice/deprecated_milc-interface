@@ -4,16 +4,19 @@ QUDA = ../lib/libquda.a
 QUDA_MILC = libquda_milc.a
 
 
-INC += -I../include -I../tests -I.
+INC += -I../include -I../tests -I. -I$(CUDA_INSTALL_PATH)/include
+
 
 TEST_HDRS = ../tests/blas_reference.h ../tests/test_util.h ../tests/dslash_util.h ../tests/staggered_dslash_reference.h 
 TEST_OBJS = ../tests/test_util.o ../tests/staggered_dslash_reference.o ../tests/misc.o ../tests/blas_reference.o 
 LOCAL_HDRS = include/utilities.h
 EXTERNAL_HDR = external_headers/quda_milc_interface.h
 
-# By default, the only routines guaranteed to 
-# be compiled are the staggered inverters
-INTERFACE_OBJS = milc_staggered_inverter_interface.o milc_init_finalize_interface.o utilities.o
+INTERFACE_OBJS = milc_init_finalize_interface.o utilities.o
+
+ifeq ($(strip $(BUILD_STAGGERED_DIRAC)),yes)
+	INTERFACE_OBJS += milc_staggered_inverter_interface.o
+endif
 
 ifeq ($(strip $(BUILD_CLOVER_DIRAC)),yes)
 	INTERFACE_OBJS += milc_wilson_inverter_interface.o
@@ -27,9 +30,6 @@ ifeq ($(strip $(BUILD_HISQLINK)), yes)
 	INTERFACE_OBJS += milc_fatlink_interface.o
 endif
 
-
-ifeq ($(strip $(BUILD_MULTI_GPU)), no)
-
 ifeq ($(strip $(BUILD_HISQ_FORCE)), yes)
 	INTERFACE_OBJS += milc_fforce_interface.o
 endif
@@ -40,7 +40,6 @@ ifeq ($(strip $(BUILD_GAUGE_FORCE)), yes)
 	INTERFACE_OBJS += milc_gforce_interface.o
 endif
 
-endif # BUILD_MULTI_GPU == no
 
 
 

@@ -2,7 +2,7 @@
 #include <cstdio>
 #include <cstring> // needed for memcpy
 
-#include <quda.h>         
+#include <quda.h>         // contains initQuda
 #include <dslash_quda.h>  // contains initDslashConstants
 #include <gauge_field.h>  
 #include <gauge_force_quda.h> 
@@ -117,8 +117,11 @@ setGaugeParams(QudaGaugeParam* gaugeParam,
   gaugeParam->cuda_prec = cuda_prec;
   gaugeParam->reconstruct = link_recon;
   gaugeParam->type = QUDA_WILSON_LINKS;
+#ifdef MULTI_GPU // use the QDP ordering scheme for the internal host fields
+  gaugeParam->gauge_order = QUDA_QDP_GAUGE_ORDER;
+#else
   gaugeParam->gauge_order = QUDA_MILC_GAUGE_ORDER;
-
+#endif
   gaugeParam->anisotropy = 1.0;
   gaugeParam->tadpole_coeff = 1.0;
   return;
@@ -139,6 +142,7 @@ void qudaGaugeForce(
 
   const int* dim = layout.getLocalDim();
   setDims(dim);
+
 
   QudaGaugeParam qudaGaugeParam;
 
@@ -402,43 +406,31 @@ void qudaGaugeForce(
   }
   
   double timeinfo[3];
-#if 0
-
-  void* sitelink_2d[4];
-  for(int i =0;i < 4;i++){
-    sitelink_2d[i] = malloc(V*18*qudaGaugeParam.cpu_prec);
-    if(sitelink_2d[i] == NULL){
-      printf("ERROR: malloc failed for sitelink_2d\n");
-      exit(1);
-    }
-  }
-  for(int i =0;i < V; i++){
-    for(int dir=0; dir < 4; dir++){
-      char* src = ((char*)milc_sitelink)+ (4*i+dir)*18*qudaGaugeParam.cpu_prec;
-      char* dst = ((char*)sitelink_2d[dir]) + i*18*qudaGaugeParam.cpu_prec;
-      memcpy(dst, src, 18*qudaGaugeParam.cpu_prec);
-      //print_su3_matrix(src, qudaGaugeParam.cpu_prec);
-    }
-  }
-  for(int i= 0;i < 4*V; i++){
-    //print_mom( ((char*)milc_momentum)+i*10, qudaGaugeParam.cpu_prec);
-  }
   memset(milc_momentum, 0, 4*V*10*qudaGaugeParam.cpu_prec);
-  gauge_force_reference(milc_momentum, eb3, sitelink_2d, NULL, qudaGaugeParam.cpu_prec,
-			input_path_buf, length, loop_coeff_ptr, num_paths);
-  
 
+#ifdef MULTI_GPU
+  void* extended_link[4]; // extended field to hold the input sitelinks
+  int extended_dim[4];
+  for(int dir=0; dir<4; ++dir){ extended_dim[dir] = dim[dir]+4; }
+  const int extended_volume = getVolume(extended_dim);
 
-  for(int i=0;i < 4;i++){
-    free(sitelink_2d[i]);
-  }
+  for(int dir=0; dir<4; ++dir){
+    allocateColorField(extended_volume,cpu_precision,false,extended_link[dir]);
+  } 
+  assignExtendedQDPGaugeField(dim, cpu_precision, milc_sitelink, extended_link);
+  exchange_cpu_sitelink_ex(qudaGaugeParam.X, extended_link,
+             QUDA_QDP_GAUGE_ORDER, qudaGaugeParam.cpu_prec, 0);
+
+  computeGaugeForceQuda(milc_momentum, extended_link,  input_path_buf, length,
+			loop_coeff_ptr, num_paths, max_length, eb3,
+			&qudaGaugeParam, timeinfo);
+
+  for(int dir=0; dir<4; ++dir){ free(extended_link[dir]); }
 #else
-  memset(milc_momentum, 0, 4*V*10*qudaGaugeParam.cpu_prec);
   computeGaugeForceQuda(milc_momentum, milc_sitelink,  input_path_buf, length,
 			loop_coeff_ptr, num_paths, max_length, eb3,
 			&qudaGaugeParam, timeinfo);
-#endif
-  
+#endif  
   for(int dir = 0; dir < 4; dir++){
     for(int i=0;i < num_paths; i++){
       free(input_path_buf[dir][i]);
