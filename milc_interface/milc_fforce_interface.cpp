@@ -606,8 +606,6 @@ qudaHisqForce(
   act_path_coeff[0] = 0.0; 
   act_path_coeff[1] = 1.0; 
 
-  QudaGaugeParam gaugeParam;
-  QudaGaugeParam forceParam;
 
   Layout layout;
   QudaPrecision local_precision = (precision==1) ? QUDA_SINGLE_PRECISION : QUDA_DOUBLE_PRECISION;
