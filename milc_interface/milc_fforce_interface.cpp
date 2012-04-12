@@ -10,6 +10,7 @@
 #include <gauge_field.h>
 #include "include/utilities.h"
 #include "external_headers/quda_milc_interface.h"
+#include "include/timer.h"
 
 //******************************************************************//
 //
@@ -53,6 +54,7 @@ cpuGaugeField *cpuMom = NULL;
 
 
 #ifdef MULTI_GPU
+cudaGaugeField *cudaGaugeComp_ex = NULL;
 cudaGaugeField *cudaGauge_ex = NULL;
 cpuGaugeField  *cpuGauge_ex = NULL;
 
@@ -186,6 +188,12 @@ hisqForceStartup(const int dim[4], QudaPrecision precision)
 																			   // need to change this!!!
 
   // EXTENDED
+  // Compressed gauge field
+  param_ex.precision = gaugeParam_ex.cuda_prec;
+  param_ex.reconstruct = QUDA_RECONSTRUCT_12;
+  cudaGaugeComp_ex = new cudaGaugeField(param_ex);
+
+
   param_ex.precision = gaugeParam_ex.cuda_prec;
   param_ex.reconstruct = QUDA_RECONSTRUCT_NO;
   cudaGauge_ex = new cudaGaugeField(param_ex);
@@ -271,6 +279,7 @@ hisqForceEnd()
   if(cpuMom)  delete cpuMom;
 
 #ifdef MULTI_GPU
+  if(cudaGaugeComp_ex)    delete cudaGaugeComp_ex;
   if(cudaGauge_ex)    delete cudaGauge_ex;
   if(cudaInForce_ex)  delete cudaInForce_ex;
   if(cudaOutForce_ex) delete cudaOutForce_ex;
@@ -439,8 +448,13 @@ qudaHisqForce(
               const void* const u_link,
 	      void* const milc_momentum)
 {
-
+  printfQuda("Calling qudaHisqForce\n"); 
   using namespace hisq::fermion_force;
+
+  Timer timer("qudaHisqForce");
+#ifndef TIME_INTERFACE
+  timer.mute();
+#endif
 
   double act_path_coeff[6];
   double fat7_act_path_coeff[6];
@@ -456,7 +470,10 @@ qudaHisqForce(
 
   Layout layout;
   QudaPrecision local_precision = (precision==1) ? QUDA_SINGLE_PRECISION : QUDA_DOUBLE_PRECISION;
+
+  timer.check();
   hisqForceStartup(layout.getLocalDim(), local_precision);
+  timer.check("hisqForceStartup");
 
 #define QUDA_VER ((10000*QUDA_VERSION_MAJOR) + (100*QUDA_VERSION_MINOR) + QUDA_VERSION_SUBMINOR)
 #if (QUDA_VER > 400)
@@ -485,34 +502,41 @@ qudaHisqForce(
 			       svd_abs_err);
   }
 
-
+  timer.check();
   // load the w link
   assignExtendedQDPGaugeField(gaugeParam.X, local_precision, w_link, (void** const)cpuGauge_ex->Gauge_p());
   exchange_cpu_sitelink_ex(gaugeParam.X, (void**)cpuGauge_ex->Gauge_p(), cpuGauge_ex->Order(), local_precision, 0); 
   loadLinkToGPU_ex(cudaGauge_ex, cpuGauge_ex);
+  timer.check("Load w links");
 
   // need to write a new function which just extends a QDP gauge field!!
   extendQDPGaugeField(gaugeParam.X, local_precision, staple_src, (void**)cpuInForce_ex->Gauge_p());
   exchange_cpu_sitelink_ex(gaugeParam.X, (void**)cpuInForce_ex->Gauge_p(), cpuInForce_ex->Order(), local_precision, 0); 
   loadLinkToGPU_ex(cudaInForce_ex, cpuInForce_ex);
+  timer.check("Load staple_src");
 
   // One-link force contribution has already been computed!  
   extendQDPGaugeField(gaugeParam.X, local_precision, one_link_src, (void**)cpuOutForce_ex->Gauge_p());
   exchange_cpu_sitelink_ex(gaugeParam.X, (void**)cpuOutForce_ex->Gauge_p(), cpuOutForce_ex->Order(), local_precision, 0); 
   loadLinkToGPU_ex(cudaOutForce_ex, cpuOutForce_ex);
+  timer.check("Load one_link_src");
+
 
   // Compute Asqtad-staple term
   hisqStaplesForceCuda(act_path_coeff, gaugeParam, *cudaInForce_ex, *cudaGauge_ex, cudaOutForce_ex);
   cudaThreadSynchronize();
+  timer.check("hisqStaplesForceCuda - asqtad paths");
 
   // Load naik outer product
   extendQDPGaugeField(gaugeParam.X, local_precision, naik_src, (void**)cpuInForce_ex->Gauge_p());
   exchange_cpu_sitelink_ex(gaugeParam.X, (void**)cpuInForce_ex->Gauge_p(), cpuInForce_ex->Order(), local_precision, 0); 
   loadLinkToGPU_ex(cudaInForce_ex, cpuInForce_ex);
+  timer.check("Load naik_src");
 
   // Compute Naik three-link term
   hisqLongLinkForceCuda(act_path_coeff[1], gaugeParam, *cudaInForce_ex, *cudaGauge_ex, cudaOutForce_ex);
   cudaThreadSynchronize();
+  timer.check("hisqLongLinkForceCuda");
 
   // update borders - should I unitarise in the interior first and then update the border region?
   // It seems to me that will depend on how the inter-gpu communication is implemented.
@@ -520,11 +544,13 @@ qudaHisqForce(
   updateExtendedQDPBorders(gaugeParam.X, local_precision, (void** const)cpuOutForce_ex->Gauge_p());
   exchange_cpu_sitelink_ex(gaugeParam.X, (void**)cpuOutForce_ex->Gauge_p(), cpuOutForce_ex->Order(), local_precision, 0); 
   loadLinkToGPU_ex(cudaOutForce_ex, cpuOutForce_ex);
-
+  timer.check("Update borders");
+ 
   // load v-link
   assignExtendedQDPGaugeField(gaugeParam.X, local_precision, v_link, (void**)cpuGauge_ex->Gauge_p());
   exchange_cpu_sitelink_ex(gaugeParam.X, (void**)cpuGauge_ex->Gauge_p(), cpuGauge_ex->Order(), local_precision, 0); 
   loadLinkToGPU_ex(cudaGauge_ex, cpuGauge_ex);
+  timer.check("Load v link");
 
   // Done with cudaInForce. It becomes the output force. Oops!
   int num_failures = 0;
@@ -533,8 +559,10 @@ qudaHisqForce(
   cudaMalloc((void**)&num_failures_dev, sizeof(int));
   cudaMemset(num_failures_dev, 0, sizeof(int));
   // Need to change this. It's doing unnecessary work!
+  timer.check();
   unitarizeForceCuda(gaugeParam_ex, *cudaOutForce_ex, *cudaGauge_ex, cudaInForce_ex, num_failures_dev);
   cudaThreadSynchronize();
+  timer.check("unitarizeForceCuda");
 
   cudaMemcpy(&num_failures, num_failures_dev, sizeof(int), cudaMemcpyDeviceToHost);
   cudaFree(num_failures_dev); 
@@ -558,15 +586,24 @@ qudaHisqForce(
   // read in u-link
   assignExtendedQDPGaugeField(gaugeParam.X, local_precision, u_link, (void**)cpuGauge_ex->Gauge_p());
   exchange_cpu_sitelink_ex(gaugeParam.X, (void**)cpuGauge_ex->Gauge_p(), cpuGauge_ex->Order(), local_precision, 0); 
-  loadLinkToGPU_ex(cudaGauge_ex, cpuGauge_ex);
- 
+  //loadLinkToGPU_ex(cudaGauge_ex, cpuGauge_ex);
+  loadLinkToGPU_ex(cudaGaugeComp_ex, cpuGauge_ex);
+
+  timer.check(); 
   // Compute Fat7-staple term 
-  hisqStaplesForceCuda(fat7_act_path_coeff, gaugeParam, *cudaInForce_ex, *cudaGauge_ex, cudaOutForce_ex);
+  gaugeParam.reconstruct = QUDA_RECONSTRUCT_12;
+
+
+  //hisqStaplesForceCuda(fat7_act_path_coeff, gaugeParam, *cudaInForce_ex, *cudaGauge_ex, cudaOutForce_ex);
+  hisqStaplesForceCuda(fat7_act_path_coeff, gaugeParam, *cudaInForce_ex, *cudaGaugeComp_ex, cudaOutForce_ex);
   cudaThreadSynchronize();
+  timer.check("hisqStaplesForceCuda - fat7 paths");
 
   // Close the paths, make anti-hermitian, and store in compressed format
-  hisqCompleteForceCuda(gaugeParam, *cudaOutForce_ex, *cudaGauge_ex, cudaMom);
+  hisqCompleteForceCuda(gaugeParam, *cudaOutForce_ex, *cudaGaugeComp_ex, cudaMom);
+ // hisqCompleteForceCuda(gaugeParam, *cudaOutForce_ex, *cudaGauge_ex, cudaMom);
   cudaThreadSynchronize();
+  timer.check("hisqCompleteForceCuda");
 
   cudaMom->saveCPUField(*cpuMom, QUDA_CPU_FIELD_LOCATION);
   memcpy(milc_momentum, cpuMom->Gauge_p(), cpuMom->Bytes());
@@ -591,7 +628,7 @@ qudaHisqForce(
               const void* const u_link,
 	      void* const milc_momentum)
 {
-
+  printfQuda("Calling qudaHisqForce\n");
   using namespace hisq::fermion_force;
 
   double act_path_coeff[6];

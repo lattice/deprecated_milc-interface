@@ -9,10 +9,10 @@ INC += -I../include -I../tests -I. -I$(CUDA_INSTALL_PATH)/include
 
 TEST_HDRS = ../tests/blas_reference.h ../tests/test_util.h ../tests/dslash_util.h ../tests/staggered_dslash_reference.h 
 TEST_OBJS = ../tests/test_util.o ../tests/staggered_dslash_reference.o ../tests/misc.o ../tests/blas_reference.o 
-LOCAL_HDRS = include/utilities.h
+LOCAL_HDRS = include/utilities.h include/timer.h
 EXTERNAL_HDR = external_headers/quda_milc_interface.h
 
-INTERFACE_OBJS = milc_init_finalize_interface.o utilities.o
+INTERFACE_OBJS = milc_init_finalize_interface.o utilities.o timer.o
 
 ifeq ($(strip $(BUILD_STAGGERED_DIRAC)),yes)
 	INTERFACE_OBJS += milc_staggered_inverter_interface.o
@@ -41,8 +41,6 @@ ifeq ($(strip $(BUILD_GAUGE_FORCE)), yes)
 endif
 
 
-
-
 all: $(QUDA_MILC)
 
 clean:
@@ -57,4 +55,4 @@ $(QUDA_MILC) : ${QUDA} ../make.inc ${TEST_OBJS} ${INTERFACE_OBJS}
 
 
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) ${INC} $< -c -o $@
+	$(CXX) $(CXXFLAGS) -DTIME_INTERFACE ${INC} $< -c -o $@

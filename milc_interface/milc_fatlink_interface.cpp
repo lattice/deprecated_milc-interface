@@ -13,6 +13,10 @@
 
 #include "include/utilities.h"
 
+#include "include/timer.h"
+
+
+
 
 // No need to do this if I return a pointer
 void copyGaugeField(int volume, QudaPrecision prec, void* src, void* dst)
@@ -45,7 +49,11 @@ void assignQDPGaugeField(const int dim[4], QudaPrecision precision, void* src, v
 
 void qudaLoadFatLink(int precision, QudaFatLinkArgs_t fatlink_args, const double act_path_coeff[6], void* inlink, void* outlink)
 {
-
+  printfQuda("Calling qudaLoadFatLink\n");
+  Timer timer("qudaLoadFatLink");
+#ifndef TIME_INTERFACE
+  timer.mute();
+#endif
   const bool usePinnedMemory = (fatlink_args.use_pinned_memory) ? true : false;
 
   Layout layout;
@@ -105,7 +113,7 @@ void qudaLoadFatLink(int precision, QudaFatLinkArgs_t fatlink_args, const double
   param.gauge_order = QUDA_MILC_GAUGE_ORDER;
 #endif
 
-
+  timer.check("Setup and data load");
   computeFatLinkQuda(local_outlink, (void**)local_inlink, const_cast<double*>(act_path_coeff), &param, method);
 
   if(usePinnedMemory){
@@ -126,6 +134,11 @@ void qudaLoadFatLink(int precision, QudaFatLinkArgs_t fatlink_args, const double
 // Otherwise, I can just copy pointers.
 void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const double path_coeff[6], void* inlink, void* fatlink, void* ulink)
 {
+  printfQuda("Calling qudaLoadUnitrizedLink\n");
+  Timer timer("qudaLoadUnitarizedLink");
+#ifndef TIME_INTERFACE
+  timer.mute();
+#endif
   printf(" %s enters\n", __FUNCTION__);
 
   // Initialize unitarization parameters
@@ -334,11 +347,15 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
       cudaInLink->loadCPUField(*cpuInLink, QUDA_CPU_FIELD_LOCATION);
     }
   } // Initialise and load siteLinks
+
+  timer.check("Setup and data load");
   printf(" %s starts to compute\n", __FUNCTION__);
   // time the subroutines in computeFatLinkCore
   struct timeval time_array[4];
   // Actually do the fattening
   computeFatLinkCore(cudaInLink, const_cast<double*>(path_coeff), &param, method, cudaFatLink, time_array);
+
+  timer.check("computeFatLinkCore");
  
   printf(" %s finished compute\n", __FUNCTION__);
 
@@ -350,8 +367,10 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
   if(num_failures_dev == NULL){
     errorQuda("cudaMalloc fialed for dev_pointer\n");
   }
+  timer.check();
   hisq::unitarizeLinksCuda(param, *cudaFatLink, cudaUnitarizedLink, num_failures_dev); // unitarize on the gpu
 
+  timer.check("unitarizeLinksCuda");
   
   cudaMemcpy(&num_failures, num_failures_dev, sizeof(int), cudaMemcpyDeviceToHost);
   cudaFree(num_failures_dev); 

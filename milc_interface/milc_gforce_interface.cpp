@@ -22,7 +22,7 @@
 // 24 from the "chair" loops.
 // 
 
-
+#include "include/timer.h"
 #include "include/utilities.h"
 
 extern int V;
@@ -138,6 +138,12 @@ void qudaGaugeForce(
                     void* milc_momentum
                    )
 {
+  printfQuda("Calling qudaGaugeForce\n");
+  Timer timer("qudaGaugeForce");
+#ifndef TIME_INTERFACE
+  timer.mute();
+#endif
+
   Layout layout; // example of the Monostate pattern
 
   const int* dim = layout.getLocalDim();

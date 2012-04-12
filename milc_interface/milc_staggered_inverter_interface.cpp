@@ -14,6 +14,8 @@
 #include <dirac_quda.h>
 #include <blas_quda.h>
 #include "external_headers/quda_milc_interface.h"
+#include "include/timer.h"
+
 
 #ifdef MULTI_GPU
 #include <face_quda.h>
@@ -24,8 +26,6 @@
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
 #include "include/utilities.h"
-
-#define TDIFF(a,b) (b.tv_sec - a.tv_sec + 0.000001*(b.tv_usec - a.tv_usec))
 
 
 
@@ -395,7 +395,12 @@ void qudaMultishiftInvert(int external_precision,
     errorQuda("qudaMultishiftInvert: requested relative residual must be zero\n");
     exit(1);
   }
-  
+
+  Timer timer("qudaMultishiftInvert"); 
+#ifndef TIME_INTERFACE
+  timer.mute();
+#endif
+ 
   Layout layout;
 
 
@@ -574,20 +579,26 @@ void qudaMultishiftInvert(int external_precision,
 #endif
   }
 
+  timer.check("Setup and data load");
+
   double* residue_sq = new double[num_offsets];
   for(int i=0; i<num_offsets; ++i) residue_sq[i] = invertParam.tol*invertParam.tol;
 
 
+ 
 
   if(use_mixed_precision){
     invertMultiShiftQudaMixed(localSolutionArray, localSource, &invertParam, offset, num_offsets, residue_sq);
+	  timer.check("invertMultiShiftQudaMixed");
   }else{
     invertMultiShiftQuda(localSolutionArray, localSource, &invertParam, offset, num_offsets, residue_sq);
+	  timer.check("invertMultiShiftQuda");
   }
 
 
   delete[] residue_sq;
 
+  timer.check();
   { // additional layer of scope
     // Copy the solution vectors back to the MILC arrays
     QudaPrecision temp_prec = gaugeParam.cpu_prec;
@@ -603,7 +614,7 @@ void qudaMultishiftInvert(int external_precision,
     }      
     gaugeParam.cpu_prec = temp_prec;
   } // additional layer of scope
-
+  timer.check("Copied solution vectors to MILC");
 
   // return the number of iterations taken by the inverter
   *num_iters = invertParam.iter;
@@ -664,11 +675,12 @@ void qudaMultishiftInvert(int external_precision,
 #ifdef MULTI_GPU
 #endif
     }
-  
+ 
     delete solutionColorField;
     delete diffColorField;
 
   } // end loop over number of offsets
+  timer.check("Computed residuals"); 
   delete sourceColorField;
   // cleanup
   delete[] mass;
@@ -715,6 +727,12 @@ void qudaInvert(int external_precision,
   if(target_fermilab_residual != 0){
     errorQuda("qudaInvert: requested relative residual must be zero\n");
   }
+
+
+  Timer timer("qudaInvert");
+#ifndef TIME_INTERFACE
+  timer.mute();
+#endif
 
   Layout layout;
 
@@ -876,7 +894,12 @@ void qudaInvert(int external_precision,
     loadGaugeQuda(longlink, &gaugeParam);
 #endif
 
-    invertQuda(localSolution, localSource, &invertParam); 
+   timer.check("Set up and data load");
+
+   invertQuda(localSolution, localSource, &invertParam); 
+
+   timer.check("invertQuda");
+
 
   { // additional layer of scope
     // Copy the solution vectors back to the MILC arrays
@@ -894,6 +917,7 @@ void qudaInvert(int external_precision,
     gaugeParam.cpu_prec = temp_prec;
   } // additional layer of scope
 
+  timer.check("Copied solution vectors to MILC");
 
   // return the number of iterations taken by the inverter
   *num_iters = invertParam.iter;
@@ -946,6 +970,8 @@ void qudaInvert(int external_precision,
   if(isVerbose){
     printf("final relative residual = %g\n", *final_fermilab_residual);
   }
+
+  timer.check("Computed residuals");
 
   delete sourceColorField;
   delete diffColorField;
