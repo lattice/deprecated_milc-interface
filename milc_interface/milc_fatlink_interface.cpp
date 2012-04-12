@@ -14,27 +14,6 @@
 #include "include/utilities.h"
 
 
-
-
-
-void allocateColorField(int volume, QudaPrecision prec, bool usePinnedMemory, void*& field)
-{
-  const int realSize = getRealSize(prec);
-  int siteSize = 18;
-  if(usePinnedMemory){
-    cudaMallocHost((void**)&field, volume*siteSize*realSize);
-  }else{
-    field = (void*)malloc(volume*siteSize*realSize);
-  }
-  if(field == NULL){
-    errorQuda("ERROR: allocateColorField failed\n");
-  }
-  return;
-}
-
-
-
-
 // No need to do this if I return a pointer
 void copyGaugeField(int volume, QudaPrecision prec, void* src, void* dst)
 {
