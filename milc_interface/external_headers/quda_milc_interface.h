@@ -123,6 +123,16 @@ extern "C" {
 			void* milc_momentum);
 
 
+        void qudaComputeOuterProduct(int precision, 
+			     double one_hop_coeff[],
+			     double three_hop_coeff[],
+			     int num_terms,
+			     void** quark_fields,
+			     void* const one_link_src[4], 
+			     void* const three_link_src[4]);
+
+
+
 #ifdef __cplusplus
 }
 #endif

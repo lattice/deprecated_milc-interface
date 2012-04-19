@@ -435,6 +435,82 @@ void allocateColorField(int volume, QudaPrecision prec, bool usePinnedMemory, vo
 
 
 
+void qudaComputeOuterProduct(int precision, 
+			     double one_hop_coeff[],
+			     double three_hop_coeff[],
+			     int num_terms,
+			     void** quark_fields,
+			     void* const one_link_src[4], 
+			     void* const three_link_src[4])
+{
+  printfQuda("Calling qudaComputeOuterProduct\n");
+
+  Layout layout;  
+  QudaPrecision local_precision = (precision == 1) ? QUDA_SINGLE_PRECISION : QUDA_DOUBLE_PRECISION;
+
+  QudaGaugeParam qudaGaugeParam;
+  for(int dir=0; dir<4; ++dir) qudaGaugeParam.X[dir] = layout.getLocalDim()[dir];
+  setDims(qudaGaugeParam.X);
+
+  qudaGaugeParam.cpu_prec    = local_precision;
+  qudaGaugeParam.cuda_prec   = local_precision;
+  qudaGaugeParam.reconstruct = QUDA_RECONSTRUCT_NO;
+  qudaGaugeParam.gauge_order = QUDA_QDP_GAUGE_ORDER; // May need to change this!
+  qudaGaugeParam.anisotropy  = 1.0;
+
+  GaugeFieldParam gParam(0, qudaGaugeParam);
+  gParam.link_type = QUDA_ASQTAD_GENERAL_LINKS;
+  gParam.create    = QUDA_REFERENCE_FIELD_CREATE;
+  gParam.v = (void*)one_link_src;
+  cpuGaugeField  *cpuOprod 	   = new cpuGaugeField(gParam);
+  gParam.v = (void*)three_link_src; 
+  cpuGaugeField  *cpuLongLinkOprod = new cpuGaugeField(gParam);
+
+  gParam.create = QUDA_ZERO_FIELD_CREATE;
+  cudaGaugeField *cudaOprod 	    = new cudaGaugeField(gParam);
+  cudaGaugeField *cudaLongLinkOprod =  new cpuGaugeField(gParam);
+
+  ColorSpinorParam quarkParam;
+  quarkParam.fieldLocation = QUDA_CPU_FIELD_LOCATION;
+  quarkParam.nColor = 3;
+  quarkParam.nSpin  = 1;
+  quarkParam.nDim   = 4;
+  
+  for(int dir=0; dir<4; ++dir) quarkParam.x[dir] = qudaGaugeParam.X[dir];
+  quarkParam.precision = local_precision; 
+  quarkParam.pad = 0;
+  quarkParam.siteSubset = QUDA_FULL_SITE_SUBSET; 
+  quarkParam.siteOrder  = QUDA_EVEN_ODD_SITE_ORDER; 
+  quarkParam.fieldOrder = QUDA_SPACE_SPIN_COLOR_FIELD_ORDER; 
+  quarkParam.gammaBasis = QUDA_DEGRAND_ROSSI_GAMMA_BASIS;
+  quarkParam.create     = QUDA_REFERENCE_FIELD_CREATE;
+  quarkParam.v          = quark_fields[0]; 
+  cpuColorSpinorField* cpuQuarkField = new cpuColorSpinorField(quarkParam);
+  quarkParam.create     = QUDA_NULL_FIELD_CREATE;
+  cudaColorSpinorField* cudaQuarkField = new cudaColorSpinorField(quarkParam);      
+  //cudaColorSpinorField* cudaQuarkField = new cudaColorSpinorField(*cpuQuarkField, quarkParam);      
+
+  // Need to change this
+  for(int i=0; i<num_terms; ++i){
+    cpuQuarkField->V() = quark_fields[i];
+    cudaQuarkField->loadCPUSpinorField(*cpuQuarkField);
+    computeOuterProdCuda(qudaGaugeParam, one_hop_coeff[i], *cudaQuarkField, cudaOprod);
+    computeLongLinkOuterProdCuda(qudaGaugeParam, three_hop_coeff[i], *cudaQuarkField, cudaLongLinkOprod);
+  }
+
+  cudaOprod->saveCPUField(*cpuOprod, QUDA_CPU_FIELD_LOCATION);
+  cudaLongLinkOprod->saveCPUField(*cpuLongLinkOprod, QUDA_CPU_FIELD_LOCATION);
+
+
+  // Don't need to reorder fields, I don't think!
+
+  if(cudaOprod) delete cudaOprod;
+  if(cudaLongLinkOprod) delete cudaLongLinkOprod;
+  if(cudaQuarkField) delete cudaQuarkField;
+
+  return;
+}
+
 void
 qudaHisqForce(
 	      int precision,

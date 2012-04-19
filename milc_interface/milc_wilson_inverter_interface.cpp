@@ -334,7 +334,6 @@ void qudaCloverInvert(int external_precision,
   } // end data fetch
 
   loadGaugeQuda((void*)gauge, &gaugeParam);
-  if(invertParam.dslash_type == QUDA_CLOVER_WILSON_DSLASH) loadCloverQuda(localClover, localCloverInverse, &invertParam);
 
   invertQuda(localSolution, localSource, &invertParam); 
   *num_iters = invertParam.iter;
