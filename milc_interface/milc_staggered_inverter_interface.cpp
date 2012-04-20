@@ -67,15 +67,6 @@ setDimConstants(const int X[4])
 }
 
 
-#ifdef MULTI_GPU
-cpuGaugeField *cpuFat = NULL;
-cpuGaugeField *cpuLong = NULL;
-
-// No need to free these. They are used as pointers only, not arrays
-void** ghost_fatlink, **ghost_longlink;
-#endif
-
-
 static 
 bool doEvenOddExchange(const int local_dim[4], const int logical_coord[4])
 {
@@ -196,7 +187,7 @@ setInvertParams(const int dim[4],
   invertParam->dirac_order = QUDA_DIRAC_ORDER;
 
   invertParam->dslash_type = QUDA_ASQTAD_DSLASH;
-  invertParam->tune = QUDA_TUNE_YES;
+  invertParam->tune = QUDA_TUNE_NO;
 
 
  
@@ -446,7 +437,7 @@ void qudaMultishiftInvert(int external_precision,
   setGaugeParams(local_dim, host_precision, device_precision, device_precision_sloppy, &gaugeParam);
   
   QudaInvertParam invertParam = newQudaInvertParam();
-  const bool isVerbose = false;
+  const bool isVerbose = true;
   const double ignore_mass = 1.0;
 #ifdef MULTI_GPU
   int logical_coord[4];
@@ -535,23 +526,6 @@ void qudaMultishiftInvert(int external_precision,
 
   const int fat_pad  = getFatLinkPadding(local_dim);
   const int long_pad = 3*fat_pad;
-
-#ifdef MULTI_GPU 
-  gaugeParam.type = QUDA_ASQTAD_FAT_LINKS;
-  gaugeParam.reconstruct = QUDA_RECONSTRUCT_NO;
-
-  cpuFat = new cpuGaugeField(GaugeFieldParam(fatlink, gaugeParam));
-
-  cpuFat->exchangeGhost();
-
-  ghost_fatlink = (void**)cpuFat->Ghost();
-
-  gaugeParam.type = QUDA_ASQTAD_LONG_LINKS;
-  cpuLong = new cpuGaugeField(GaugeFieldParam(longlink, gaugeParam));
-  cpuLong->exchangeGhost();
-  ghost_longlink = (void**)cpuLong->Ghost();
-#endif
-
 
   if(use_mixed_precision)
   {
@@ -698,10 +672,6 @@ void qudaMultishiftInvert(int external_precision,
 
   freeGaugeQuda(); // free up the gauge-field objects allocated
 
-#ifdef MULTI_GPU
-  if(cpuFat) delete cpuFat;
-  if(cpuLong) delete cpuLong;
-#endif
 
   return;
 } // qudaMultiShiftInvert
@@ -862,19 +832,6 @@ void qudaInvert(int external_precision,
   const int fat_pad  = getFatLinkPadding(local_dim);
   const int long_pad = 3*fat_pad;
 
-#ifdef MULTI_GPU 
-   gaugeParam.type = QUDA_ASQTAD_FAT_LINKS;
-   gaugeParam.reconstruct = QUDA_RECONSTRUCT_NO;
-   cpuFat = new cpuGaugeField(GaugeFieldParam(fatlink,gaugeParam));
-   cpuFat->exchangeGhost();
-   ghost_fatlink = (void**)cpuFat->Ghost();
-
-   gaugeParam.type = QUDA_ASQTAD_LONG_LINKS;
-   cpuLong = new cpuGaugeField(GaugeFieldParam(longlink,gaugeParam));
-   cpuLong->exchangeGhost();
-   ghost_longlink = (void**)cpuLong->Ghost();
-#endif
-
   // No mixed precision here, it seems
 #ifdef MULTI_GPU
     gaugeParam.type = QUDA_ASQTAD_FAT_LINKS;
@@ -991,10 +948,6 @@ void qudaInvert(int external_precision,
   freeGaugeQuda(); // free up the gauge-field objects allocated
                    // in loadGaugeQuda        
   
-#ifdef MULTI_GPU
-  if(cpuFat) delete cpuFat;
-  if(cpuLong) delete cpuLong;
-#endif
   return;
 } // qudaInvert
 
