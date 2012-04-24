@@ -149,7 +149,7 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
     const int reunit_svd_only  = 0;
     const double svd_rel_error = 1e-6;
     const double svd_abs_error = 1e-6;
-    hisq::setUnitarizeLinksConstants(unitarize_eps, max_error,
+    quda::setUnitarizeLinksConstants(unitarize_eps, max_error,
 			       reunit_allow_svd, reunit_svd_only,
 			       svd_rel_error, svd_abs_error);
   }
@@ -287,7 +287,7 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
     cudaUnitarizedLink = new cudaGaugeField(gParam);
   }
 
-  hisq::setUnitarizeLinksPadding(param.llfat_ga_pad,param.llfat_ga_pad);
+  quda::setUnitarizeLinksPadding(param.llfat_ga_pad,param.llfat_ga_pad);
 
   // create the host sitelink	
   if(cpuInLink == NULL){
@@ -338,7 +338,8 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
     llfat_init_cuda_ex(qudaGaugeParam_ex);
 	
 #ifdef MULTI_GPU
-    exchange_cpu_sitelink_ex(param.X, (void**)cpuInLink->Gauge_p(), QUDA_QDP_GAUGE_ORDER, param.cpu_prec, 1);
+    int R[4] = {2, 2, 2, 2}; 
+    exchange_cpu_sitelink_ex(param.X, R, (void**)cpuInLink->Gauge_p(), QUDA_QDP_GAUGE_ORDER, param.cpu_prec, 1);
 #endif
     qudaGaugeParam_ex->ga_pad = qudaGaugeParam_ex->site_ga_pad;
     if(param.gauge_order == QUDA_QDP_GAUGE_ORDER){ 
@@ -368,7 +369,7 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
     errorQuda("cudaMalloc fialed for dev_pointer\n");
   }
   timer.check();
-  hisq::unitarizeLinksCuda(param, *cudaFatLink, cudaUnitarizedLink, num_failures_dev); // unitarize on the gpu
+  quda::unitarizeLinksCuda(param, *cudaFatLink, cudaUnitarizedLink, num_failures_dev); // unitarize on the gpu
 
   timer.check("unitarizeLinksCuda");
   

@@ -424,7 +424,8 @@ void qudaGaugeForce(
     allocateColorField(extended_volume,cpu_precision,false,extended_link[dir]);
   } 
   assignExtendedQDPGaugeField(dim, cpu_precision, milc_sitelink, extended_link);
-  exchange_cpu_sitelink_ex(qudaGaugeParam.X, extended_link,
+  int R[4] = {2, 2, 2, 2};
+  exchange_cpu_sitelink_ex(qudaGaugeParam.X, R, extended_link,
              QUDA_QDP_GAUGE_ORDER, qudaGaugeParam.cpu_prec, 0);
 
   computeGaugeForceQuda(milc_momentum, extended_link,  input_path_buf, length,

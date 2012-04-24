@@ -365,6 +365,28 @@ getColorVectorOffset(QudaParity local_parity, bool even_odd_exchange, int volume
 }
 
 
+double
+norm_gauge_field(void** _gauge, int volume, QudaPrecision prec)
+{
+  double norm = 0;
+  for(int dir =0; dir < 4 ; dir++){
+    for(int i=0;i < volume*18; i++){    
+      if(prec == QUDA_DOUBLE_PRECISION){
+	double* gauge = (double*)(_gauge[dir]);
+	norm += gauge[i]*gauge[i];
+      }else{
+	float* gauge = (float*)(_gauge[dir]);
+	norm += gauge[i]*gauge[i];      
+      }
+    }
+  }
+  
+  comm_allreduce(&norm);
+  
+  return norm;
+
+}
+
 void qudaMultishiftInvert(int external_precision, 
                       int quda_precision,
                       int num_offsets,
@@ -485,8 +507,10 @@ void qudaMultishiftInvert(int external_precision,
     MilcFieldLoader loader(milc_precision, gaugeParam, even_odd_exchange);
     
     loader.loadGaugeField(milc_fatlink, fatlink);
-	  loader.loadGaugeField(milc_longlink, longlink);
-
+    loader.loadGaugeField(milc_longlink, longlink);
+    
+    printf("fatlink norm =%f\n", norm_gauge_field(fatlink, volume, gaugeParam.cpu_prec));
+    printf("longlink norm =%f\n", norm_gauge_field(longlink, volume, gaugeParam.cpu_prec));
 
     if(milc_precision != gaugeParam.cpu_prec)
     {

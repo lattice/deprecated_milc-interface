@@ -449,7 +449,7 @@ qudaHisqForce(
 	      void* const milc_momentum)
 {
   printfQuda("Calling qudaHisqForce\n"); 
-  using namespace hisq::fermion_force;
+  using namespace quda::fermion_force;
 
   Timer timer("qudaHisqForce");
 #ifndef TIME_INTERFACE
@@ -505,19 +505,20 @@ qudaHisqForce(
   timer.check();
   // load the w link
   assignExtendedQDPGaugeField(gaugeParam.X, local_precision, w_link, (void** const)cpuGauge_ex->Gauge_p());
-  exchange_cpu_sitelink_ex(gaugeParam.X, (void**)cpuGauge_ex->Gauge_p(), cpuGauge_ex->Order(), local_precision, 0); 
+  int R[4] = {2, 2, 2, 2};
+  exchange_cpu_sitelink_ex(gaugeParam.X, R, (void**)cpuGauge_ex->Gauge_p(), cpuGauge_ex->Order(), local_precision, 0); 
   loadLinkToGPU_ex(cudaGauge_ex, cpuGauge_ex);
   timer.check("Load w links");
 
   // need to write a new function which just extends a QDP gauge field!!
   extendQDPGaugeField(gaugeParam.X, local_precision, staple_src, (void**)cpuInForce_ex->Gauge_p());
-  exchange_cpu_sitelink_ex(gaugeParam.X, (void**)cpuInForce_ex->Gauge_p(), cpuInForce_ex->Order(), local_precision, 0); 
+  exchange_cpu_sitelink_ex(gaugeParam.X, R, (void**)cpuInForce_ex->Gauge_p(), cpuInForce_ex->Order(), local_precision, 0); 
   loadLinkToGPU_ex(cudaInForce_ex, cpuInForce_ex);
   timer.check("Load staple_src");
 
   // One-link force contribution has already been computed!  
   extendQDPGaugeField(gaugeParam.X, local_precision, one_link_src, (void**)cpuOutForce_ex->Gauge_p());
-  exchange_cpu_sitelink_ex(gaugeParam.X, (void**)cpuOutForce_ex->Gauge_p(), cpuOutForce_ex->Order(), local_precision, 0); 
+  exchange_cpu_sitelink_ex(gaugeParam.X, R, (void**)cpuOutForce_ex->Gauge_p(), cpuOutForce_ex->Order(), local_precision, 0); 
   loadLinkToGPU_ex(cudaOutForce_ex, cpuOutForce_ex);
   timer.check("Load one_link_src");
 
@@ -529,7 +530,7 @@ qudaHisqForce(
 
   // Load naik outer product
   extendQDPGaugeField(gaugeParam.X, local_precision, naik_src, (void**)cpuInForce_ex->Gauge_p());
-  exchange_cpu_sitelink_ex(gaugeParam.X, (void**)cpuInForce_ex->Gauge_p(), cpuInForce_ex->Order(), local_precision, 0); 
+  exchange_cpu_sitelink_ex(gaugeParam.X, R, (void**)cpuInForce_ex->Gauge_p(), cpuInForce_ex->Order(), local_precision, 0); 
   loadLinkToGPU_ex(cudaInForce_ex, cpuInForce_ex);
   timer.check("Load naik_src");
 
@@ -542,13 +543,13 @@ qudaHisqForce(
   // It seems to me that will depend on how the inter-gpu communication is implemented.
   cudaOutForce_ex->saveCPUField(*cpuOutForce_ex, QUDA_CPU_FIELD_LOCATION);
   updateExtendedQDPBorders(gaugeParam.X, local_precision, (void** const)cpuOutForce_ex->Gauge_p());
-  exchange_cpu_sitelink_ex(gaugeParam.X, (void**)cpuOutForce_ex->Gauge_p(), cpuOutForce_ex->Order(), local_precision, 0); 
+  exchange_cpu_sitelink_ex(gaugeParam.X, R, (void**)cpuOutForce_ex->Gauge_p(), cpuOutForce_ex->Order(), local_precision, 0); 
   loadLinkToGPU_ex(cudaOutForce_ex, cpuOutForce_ex);
   timer.check("Update borders");
  
   // load v-link
   assignExtendedQDPGaugeField(gaugeParam.X, local_precision, v_link, (void**)cpuGauge_ex->Gauge_p());
-  exchange_cpu_sitelink_ex(gaugeParam.X, (void**)cpuGauge_ex->Gauge_p(), cpuGauge_ex->Order(), local_precision, 0); 
+  exchange_cpu_sitelink_ex(gaugeParam.X, R, (void**)cpuGauge_ex->Gauge_p(), cpuGauge_ex->Order(), local_precision, 0); 
   loadLinkToGPU_ex(cudaGauge_ex, cpuGauge_ex);
   timer.check("Load v link");
 
@@ -585,7 +586,7 @@ qudaHisqForce(
 
   // read in u-link
   assignExtendedQDPGaugeField(gaugeParam.X, local_precision, u_link, (void**)cpuGauge_ex->Gauge_p());
-  exchange_cpu_sitelink_ex(gaugeParam.X, (void**)cpuGauge_ex->Gauge_p(), cpuGauge_ex->Order(), local_precision, 0); 
+  exchange_cpu_sitelink_ex(gaugeParam.X, R, (void**)cpuGauge_ex->Gauge_p(), cpuGauge_ex->Order(), local_precision, 0); 
   //loadLinkToGPU_ex(cudaGauge_ex, cpuGauge_ex);
   loadLinkToGPU_ex(cudaGaugeComp_ex, cpuGauge_ex);
 

@@ -85,7 +85,7 @@ void qudaHisqParamsInit(QudaHisqParams_t params)
   const double max_error = 1e-10;
 
 #ifdef GPU_HISQ_FORCE
-  hisq::fermion_force::setUnitarizeForceConstants(unitarize_eps,
+  quda::fermion_force::setUnitarizeForceConstants(unitarize_eps,
                                 		     params.force_filter,
                                 		     max_error,
                                 		     reunit_allow_svd,
@@ -95,7 +95,7 @@ void qudaHisqParamsInit(QudaHisqParams_t params)
 #endif
 
 #ifdef GPU_UNITARIZE
-  hisq::setUnitarizeLinksConstants(unitarize_eps,
+  quda::setUnitarizeLinksConstants(unitarize_eps,
 				   max_error,
 				   reunit_allow_svd,
 				   reunit_svd_only,
