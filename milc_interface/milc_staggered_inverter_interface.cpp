@@ -196,7 +196,7 @@ setInvertParams(const int dim[4],
   }else if(parity == QUDA_ODD_PARITY){
     invertParam->matpc_type = QUDA_MATPC_ODD_ODD;
   }else{
-    fprintf(stderr, "ERROR: invalid parity\n");
+    errorQuda("Invalid parity\n");
     exit(1);
   }
 
@@ -423,14 +423,14 @@ void qudaMultishiftInvert(int external_precision,
 
 
   QudaPrecision host_precision, device_precision, device_precision_sloppy;
-  const bool use_mixed_precision = (inv_args.mixed_precision) ? true : false;
+  const bool use_mixed_precision = ((quda_precision==2) && inv_args.mixed_precision) ? true : false;
 
   if(use_mixed_precision){
-    printf("Using mixed-precision multi-mass inverter\n");
+    printfQuda("Using mixed double-precision multi-mass inverter\n");
   }else if(quda_precision == 2){
-    printf("Using double-precision multi-mass inverter\n");
+    printfQuda("Using double-precision multi-mass inverter\n");
   }else if(quda_precision == 1){
-    printf("Using single-precision multi-mass inverter\n");
+    printfQuda("Using single-precision multi-mass inverter\n");
   }else{
     errorQuda("Unrecognised precision\n");
     exit(1);
@@ -450,7 +450,7 @@ void qudaMultishiftInvert(int external_precision,
    }	
   }else{
     errorQuda("qudaMultishiftInvert: unrecognised precision\n");
-		exit(1);
+    exit(1);
   }
 
 
@@ -509,9 +509,6 @@ void qudaMultishiftInvert(int external_precision,
     loader.loadGaugeField(milc_fatlink, fatlink);
     loader.loadGaugeField(milc_longlink, longlink);
     
-    printf("fatlink norm =%f\n", norm_gauge_field(fatlink, volume, gaugeParam.cpu_prec));
-    printf("longlink norm =%f\n", norm_gauge_field(longlink, volume, gaugeParam.cpu_prec));
-
     if(milc_precision != gaugeParam.cpu_prec)
     {
       const size_t real_size = (gaugeParam.cpu_prec == QUDA_DOUBLE_PRECISION) ? sizeof(double) : sizeof(float);
@@ -734,13 +731,13 @@ void qudaInvert(int external_precision,
   setDims(const_cast<int*>(local_dim));
   setDimConstants(const_cast<int*>(local_dim));
 
-  const bool use_mixed_precision = (inv_args.mixed_precision) ? true : false;
+  const bool use_mixed_precision = ((quda_precision==2) && inv_args.mixed_precision) ? true : false;
   if(use_mixed_precision){
-    printf("Using mixed-precision CG inverter\n");
+    printfQuda("Using mixed double-precision CG inverter\n");
   }else if(quda_precision == 2){
-    printf("Using double-precision CG inverter\n");
+    printfQuda("Using double-precision CG inverter\n");
   }else if(quda_precision == 1){
-    printf("Using single-precision CG inverter\n");
+    printfQuda("Using single-precision CG inverter\n");
   }else{
     errorQuda("Unrecognised precision\n");
     exit(1);
@@ -763,7 +760,7 @@ void qudaInvert(int external_precision,
      device_precision_sloppy = QUDA_HALF_PRECISION;
    }
   }else{
-    fprintf(stderr,"Unrecognised precision\n");
+    errorQuda("Unrecognised precision\n");
     exit(1);
   }
 
@@ -938,8 +935,8 @@ void qudaInvert(int external_precision,
   *final_residual = computeRegularResidual(*sourceColorField, *diffColorField, invertParam.cpu_prec);    
 
   if(isVerbose){
-    printf("target residual = %g\n", invertParam.tol);
-    printf("final residual = %g\n", *final_residual);
+    printfQuda("target residual = %g\n", invertParam.tol);
+    printfQuda("final residual = %g\n", *final_residual);
   }
 
   if(invertParam.cpu_prec == QUDA_DOUBLE_PRECISION){
@@ -949,7 +946,7 @@ void qudaInvert(int external_precision,
   }
 
   if(isVerbose){
-    printf("final relative residual = %g\n", *final_fermilab_residual);
+    printfQuda("final relative residual = %g\n", *final_fermilab_residual);
   }
 
   timer.check("Computed residuals");
