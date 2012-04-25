@@ -662,13 +662,9 @@ void qudaMultishiftInvert(int external_precision,
     }
 
     if(isVerbose){
-#ifdef MULTI_GPU
-#endif
-      printf("target residual = %g\n", invertParam.tol);
-      printf("residual = %g\n", final_residual[i]);
-      printf("fermilab residual = %g\n", final_fermilab_residual[i]);
-#ifdef MULTI_GPU
-#endif
+      printfQuda("target residual = %g\n", invertParam.tol);
+      printfQuda("residual = %g\n", final_residual[i]);
+      printfQuda("fermilab residual = %g\n", final_fermilab_residual[i]);
     }
  
     delete solutionColorField;

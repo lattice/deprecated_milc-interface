@@ -139,7 +139,7 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
 #ifndef TIME_INTERFACE
   timer.mute();
 #endif
-  printf(" %s enters\n", __FUNCTION__);
+  //printf(" %s enters\n", __FUNCTION__);
 
   // Initialize unitarization parameters
   {
@@ -350,7 +350,7 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
   } // Initialise and load siteLinks
 
   timer.check("Setup and data load");
-  printf(" %s starts to compute\n", __FUNCTION__);
+  //printf(" %s starts to compute\n", __FUNCTION__);
   // time the subroutines in computeFatLinkCore
   struct timeval time_array[4];
   // Actually do the fattening
@@ -358,7 +358,7 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
 
   timer.check("computeFatLinkCore");
  
-  printf(" %s finished compute\n", __FUNCTION__);
+  //printf(" %s finished compute\n", __FUNCTION__);
 
   int num_failures=0;
   int* num_failures_dev;
@@ -421,6 +421,6 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
     if(fatlink != NULL) cudaFreeHost(local_fatlink);
     cudaFreeHost(local_ulink);
   }
-  printf(" %s returns: reducd # of syncs\n", __FUNCTION__);
+  //printf(" %s returns: reducd # of syncs\n", __FUNCTION__);
   return;
 }

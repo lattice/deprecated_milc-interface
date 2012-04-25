@@ -32,7 +32,7 @@ void qudaInit(QudaLayout_t input)
 #ifdef MULTI_GPU
   layout.setGridDim(input.machsize);
   const int* grid_size = layout.getGridDim();
-  printf("Gridsize = %d %d %d %d\n", grid_size[0], grid_size[1], grid_size[2], grid_size[3]);
+  printfQuda("Gridsize = %d %d %d %d\n", grid_size[0], grid_size[1], grid_size[2], grid_size[3]);
 
   comm_set_gridsize(grid_size[0], grid_size[1], grid_size[2], grid_size[3]);
   comm_init();
@@ -46,7 +46,6 @@ void qudaInit(QudaLayout_t input)
   static int device = 0;
 #endif
   initQuda(device);
-  printf("Initialisation complete\n");
   return;
 }
 
