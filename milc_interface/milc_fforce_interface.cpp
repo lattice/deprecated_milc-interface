@@ -107,6 +107,47 @@ void reorderMilcForce(const void* const src[4], int volume, QudaPrecision precis
 
 #ifdef MULTI_GPU
 static void 
+allocateMomentum(const int dim[4], QudaPrecision precision)
+{
+  for(int dir=0; dir<4; ++dir){
+    gaugeParam.X[dir] = dim[dir];
+    forceParam.X[dir] = dim[dir];
+  }
+  gaugeParam.anisotropy     = 1.0;
+  gaugeParam.gauge_order    = QUDA_QDP_GAUGE_ORDER;
+  forceParam.gauge_order    = QUDA_QDP_GAUGE_ORDER;
+  
+  gaugeParam.cpu_prec = gaugeParam.cuda_prec = precision;
+  gaugeParam.reconstruct = QUDA_RECONSTRUCT_NO;
+  gaugeParam.type = QUDA_WILSON_LINKS; // ??
+
+  forceParam.cpu_prec = forceParam.cuda_prec = precision;
+  forceParam.reconstruct = QUDA_RECONSTRUCT_NO;
+  forceParam.type = QUDA_ASQTAD_GENERAL_LINKS; // ??
+
+  GaugeFieldParam param(0, gaugeParam);
+  param.create = QUDA_NULL_FIELD_CREATE;
+  param.link_type = QUDA_ASQTAD_GENERAL_LINKS; 
+  // allocate memory for the host arrays
+  param.precision = gaugeParam.cpu_prec;
+  param.reconstruct = QUDA_RECONSTRUCT_NO;
+  param.order  = QUDA_MILC_GAUGE_ORDER;
+  param.reconstruct = QUDA_RECONSTRUCT_10;
+  cpuMom = new cpuGaugeField(param);
+  memset(cpuMom->Gauge_p(), 0, cpuMom->Bytes());
+  param.order  = QUDA_QDP_GAUGE_ORDER;
+
+  param.precision = forceParam.cuda_prec;
+  param.order  = QUDA_MILC_GAUGE_ORDER;
+  param.reconstruct = QUDA_RECONSTRUCT_10;
+  cudaMom = new cudaGaugeField(param);
+  cudaMemset((void**)(cudaMom->Gauge_p()), 0, cudaMom->Bytes());
+  return;
+}
+
+
+
+static void 
 hisqForceStartup(const int dim[4], QudaPrecision precision)
 {
   for(int dir=0; dir<4; ++dir){
@@ -175,9 +216,9 @@ hisqForceStartup(const int dim[4], QudaPrecision precision)
   cpuOutForce_ex = new cpuGaugeField(param_ex);
   // MOMENTUM
   param.order  = QUDA_MILC_GAUGE_ORDER;
-  param.reconstruct = QUDA_RECONSTRUCT_10;
-  cpuMom = new cpuGaugeField(param);
-  memset(cpuMom->Gauge_p(), 0, cpuMom->Bytes());
+//  param.reconstruct = QUDA_RECONSTRUCT_10;
+//  cpuMom = new cpuGaugeField(param);
+//  memset(cpuMom->Gauge_p(), 0, cpuMom->Bytes());
   param.order  = QUDA_QDP_GAUGE_ORDER;
 
   // STANDARD
@@ -210,8 +251,8 @@ hisqForceStartup(const int dim[4], QudaPrecision precision)
   // MOMENTUM
   param.order  = QUDA_MILC_GAUGE_ORDER;
   param.reconstruct = QUDA_RECONSTRUCT_10;
-  cudaMom = new cudaGaugeField(param);
-  cudaMemset((void**)(cudaMom->Gauge_p()), 0, cudaMom->Bytes());
+//  cudaMom = new cudaGaugeField(param);
+//  cudaMemset((void**)(cudaMom->Gauge_p()), 0, cudaMom->Bytes());
   return;
 }
 
@@ -416,22 +457,6 @@ void refreshExtendedQDPGaugeField(int dim[4],
 
 
 #ifdef MULTI_GPU
-/*
-void allocateColorField(int volume, QudaPrecision prec, bool usePinnedMemory, void*& field)
-{
-  const int realSize = getRealSize(prec);
-  int siteSize = 18;
-  if(usePinnedMemory){
-    cudaMallocHost((void**)&field, volume*siteSize*realSize);
-  }else{
-    field = (void*)malloc(volume*siteSize*realSize);
-  }
-  if(field == NULL){
-    errorQuda("ERROR: allocateColorField failed\n");
-  }
-  return;
-}
-*/
 
 
 
@@ -676,9 +701,17 @@ qudaHisqForce(
   cudaThreadSynchronize();
   timer.check("hisqStaplesForceCuda - fat7 paths");
 
+  if(cudaInForce_ex) delete cudaInForce_ex;
+  if(cudaGauge_ex) delete cudaGauge_ex;
+  if(cpuInForce_ex) delete cpuInForce_ex;
+  if(cpuGauge_ex) delete cpuGauge_ex; 
+
+
+  allocateMomentum(layout.getLocalDim(), local_precision);
+
+  
   // Close the paths, make anti-hermitian, and store in compressed format
   hisqCompleteForceCuda(gaugeParam, *cudaOutForce_ex, *cudaGaugeComp_ex, cudaMom);
- // hisqCompleteForceCuda(gaugeParam, *cudaOutForce_ex, *cudaGauge_ex, cudaMom);
   cudaThreadSynchronize();
   timer.check("hisqCompleteForceCuda");
 
