@@ -634,7 +634,7 @@ void qudaMultishiftInvert(int external_precision,
 
     // compute the residuals
     invertParam.mass = mass[i];
-    ColorSpinorParam cpuParam(solutionColorField->V(), invertParam, local_dim, true);
+    ColorSpinorParam cpuParam(solutionColorField->V(), QUDA_CPU_FIELD_LOCATION, invertParam, local_dim, true);
     ColorSpinorParam cudaParam(cpuParam, invertParam);
     cudaParam.siteSubset = csParam.siteSubset;
     cudaColorSpinorField cudaSolutionField(*solutionColorField, cudaParam);
@@ -650,7 +650,7 @@ void qudaMultishiftInvert(int external_precision,
     mxpyCuda(cudaSourceField, cudaOutField);
     cpuParam.v = diffColorField->V();
     cpuColorSpinorField hOut(cpuParam);
-    cudaOutField.saveCPUSpinorField(hOut);
+    cudaOutField = *hOut;
 
     final_residual[i] = computeRegularResidual(*sourceColorField, *diffColorField, invertParam.cpu_prec);    
 
@@ -907,7 +907,7 @@ void qudaInvert(int external_precision,
   cpuColorSpinorField* sourceColorField = new cpuColorSpinorField(csParam); 
 
   invertParam.mass = mass;
-  ColorSpinorParam cpuParam(solutionColorField->V(), invertParam, local_dim, true);
+  ColorSpinorParam cpuParam(solutionColorField->V(), QUDA_CPU_FIELD_LOCATION, invertParam, local_dim, true);
   ColorSpinorParam cudaParam(cpuParam, invertParam);
   cudaParam.siteSubset = csParam.siteSubset;
   cudaColorSpinorField cudaSolutionField(*solutionColorField, cudaParam);
@@ -923,7 +923,7 @@ void qudaInvert(int external_precision,
   mxpyCuda(cudaSourceField, cudaOutField);
   cpuParam.v = diffColorField->V();
   cpuColorSpinorField hOut(cpuParam);
-  cudaOutField.saveCPUSpinorField(hOut);
+  cudaOutField = *hOut;
 
 
   // Compute the residuals

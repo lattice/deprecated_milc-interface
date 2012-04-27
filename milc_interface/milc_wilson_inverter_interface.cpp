@@ -350,7 +350,7 @@ void qudaCloverInvert(int external_precision,
 
     csParam.v      = localSolution;
     cpuColorSpinorField* solutionColorField = new cpuColorSpinorField(csParam);
-    ColorSpinorParam cpuParam(solutionColorField->V(), invertParam, local_dim, false);
+    ColorSpinorParam cpuParam(solutionColorField->V(), QUDA_CPU_FIELD_LOCATION, invertParam, local_dim, false);
     ColorSpinorParam cudaParam(cpuParam, invertParam);
 
     cudaParam.siteSubset = csParam.siteSubset;
@@ -369,7 +369,7 @@ void qudaCloverInvert(int external_precision,
     mxpyCuda(cudaSourceField, cudaOutField);
     cpuParam.v = diffColorField->V();
     cpuColorSpinorField hOut(cpuParam);
-    cudaOutField.saveCPUSpinorField(hOut);
+    cudaOutField = *hOut;
 
     *final_residual = computeRegularResidual(*sourceColorField, *diffColorField, invertParam.cpu_prec);    
     bool isVerbose = false;
