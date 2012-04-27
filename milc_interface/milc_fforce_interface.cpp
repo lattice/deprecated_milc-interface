@@ -42,13 +42,13 @@
 namespace { // anonymous namespace
 
 cudaGaugeField *cudaGauge = NULL;
+#ifndef MULTI_GPU
 cpuGaugeField *cpuGauge = NULL;
 cudaGaugeField *cudaInForce = NULL;
 cpuGaugeField *cpuInForce = NULL;
-
 cudaGaugeField *cudaOutForce = NULL;
 cpuGaugeField *cpuOutForce = NULL;
-
+#endif
 cudaGaugeField *cudaMom = NULL;
 cpuGaugeField *cpuMom = NULL;
 
