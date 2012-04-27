@@ -316,27 +316,27 @@ hisqForceStartup(const int dim[4], QudaPrecision precision)
 static void
 hisqForceEnd()
 {
-  if(cudaMom) delete cudaMom;
-  if(cpuMom)  delete cpuMom;
+  if(cudaMom) { delete cudaMom; cudaMom = NULL;}
+  if(cpuMom)  { delete cpuMom; cpuMom = NULL;}
 
 #ifdef MULTI_GPU
-  if(cudaGaugeComp_ex)    delete cudaGaugeComp_ex;
-  if(cudaGauge_ex)    delete cudaGauge_ex;
-  if(cudaInForce_ex)  delete cudaInForce_ex;
-  if(cudaOutForce_ex) delete cudaOutForce_ex;
-
-  if(cpuInForce_ex)   delete cpuInForce_ex;
-  if(cpuOutForce_ex)  delete cpuOutForce_ex;
-  if(cpuGauge_ex)     delete cpuGauge_ex;
+  if(cudaGaugeComp_ex) { delete cudaGaugeComp_ex;  cudaGaugeComp_ex =NULL;}
+  if(cudaGauge_ex)     { delete cudaGauge_ex;      cudaGauge_ex = NULL; }
+  if(cudaInForce_ex)  {  delete cudaInForce_ex;    cudaInForce_ex = NULL;}
+  if(cudaOutForce_ex) {  delete cudaOutForce_ex;   cudaOutForce_ex = NULL;}
+  
+  if(cpuInForce_ex)   { delete cpuInForce_ex;      cpuInForce_ex = NULL;} 
+  if(cpuOutForce_ex)  { delete cpuOutForce_ex;     cpuOutForce_ex = NULL;}
+  if(cpuGauge_ex)     { delete cpuGauge_ex;        cpuGauge_ex = NULL;}
 #else
-  if(cudaInForce)  delete cudaInForce;
-  if(cudaOutForce) delete cudaOutForce;
+  if(cudaInForce)  { delete cudaInForce;  cudaInForce = NULL;}
+  if(cudaOutForce) { delete cudaOutForce; cudaOutForce = NULL;}
 
-  if(cpuInForce) delete cpuInForce;
-  if(cpuOutForce) delete cpuOutForce;
-  if(cpuGauge) delete cpuGauge;
+  if(cpuInForce)  { delete cpuInForce;  cpuInForce = NULL;}
+  if(cpuOutForce) { delete cpuOutForce; cpuOutForce = NULL;}
+  if(cpuGauge)    { delete cpuGauge;    cpuGauge = NULL;}
 #endif
-  if(cudaGauge)    delete cudaGauge;
+  if(cudaGauge)   { delete cudaGauge;  cudaGauge = NULL;}
   return;
 }
 
@@ -458,7 +458,7 @@ void refreshExtendedQDPGaugeField(int dim[4],
 
 #ifdef MULTI_GPU
 
-
+#if 0
 
 void qudaComputeOuterProduct(int precision, 
 			     double one_hop_coeff[],
@@ -535,6 +535,8 @@ void qudaComputeOuterProduct(int precision,
 
   return;
 }
+
+#endif
 
 void
 qudaHisqForce(
@@ -701,10 +703,10 @@ qudaHisqForce(
   cudaThreadSynchronize();
   timer.check("hisqStaplesForceCuda - fat7 paths");
 
-  if(cudaInForce_ex) delete cudaInForce_ex;
-  if(cudaGauge_ex) delete cudaGauge_ex;
-  if(cpuInForce_ex) delete cpuInForce_ex;
-  if(cpuGauge_ex) delete cpuGauge_ex; 
+  if(cudaInForce_ex) { delete cudaInForce_ex; cudaInForce_ex =NULL;}
+  if(cudaGauge_ex) { delete cudaGauge_ex; cudaGauge_ex = NULL;}
+  if(cpuInForce_ex) { delete cpuInForce_ex; cpuInForce_ex = NULL; }
+  if(cpuGauge_ex) { delete cpuGauge_ex;  cpuGauge_ex = NULL;}
 
 
   allocateMomentum(layout.getLocalDim(), local_precision);
