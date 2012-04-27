@@ -172,7 +172,8 @@ setInvertParams(const int dim[4],
   invertParam->inv_type = QUDA_CG_INVERTER;
   invertParam->tol = target_residual;
   invertParam->maxiter = maxiter;
-  invertParam->reliable_delta = reliable_delta; 
+  //invertParam->reliable_delta = reliable_delta; 
+  invertParam->reliable_delta = 1e-2; // WARNING - THIS IS NOT A GOOD IDEA!
   
   invertParam->mass_normalization = QUDA_MASS_NORMALIZATION;
   invertParam->cpu_prec = cpu_prec;
