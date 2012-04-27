@@ -2,7 +2,6 @@
 #define _QUDA_MILC_INTERFACE_H
 
 #include <enum_quda.h>
-#include <util_quda.h>
 
 #ifdef __cplusplus
 extern "C" {

@@ -82,4 +82,8 @@ void assignExtendedQDPGaugeField(const int dim[4], QudaPrecision precision, cons
 
 void updateExtendedQDPBorders(const int dim[4], QudaPrecision precision, void** const qdp_field);
 
+
+#include <util_quda.h> // for printfQuda
+
+
 #endif // _QUDA_MILC_UTILITIES_H
