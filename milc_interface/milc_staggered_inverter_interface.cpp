@@ -650,7 +650,7 @@ void qudaMultishiftInvert(int external_precision,
     mxpyCuda(cudaSourceField, cudaOutField);
     cpuParam.v = diffColorField->V();
     cpuColorSpinorField hOut(cpuParam);
-    cudaOutField = *hOut;
+    hOut = cudaOutField;
 
     final_residual[i] = computeRegularResidual(*sourceColorField, *diffColorField, invertParam.cpu_prec);    
 
@@ -923,7 +923,7 @@ void qudaInvert(int external_precision,
   mxpyCuda(cudaSourceField, cudaOutField);
   cpuParam.v = diffColorField->V();
   cpuColorSpinorField hOut(cpuParam);
-  cudaOutField = *hOut;
+  hOut = cudaOutField;
 
 
   // Compute the residuals

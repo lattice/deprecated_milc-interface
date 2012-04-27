@@ -369,7 +369,7 @@ void qudaCloverInvert(int external_precision,
     mxpyCuda(cudaSourceField, cudaOutField);
     cpuParam.v = diffColorField->V();
     cpuColorSpinorField hOut(cpuParam);
-    cudaOutField = *hOut;
+    hOut = cudaOutField;
 
     *final_residual = computeRegularResidual(*sourceColorField, *diffColorField, invertParam.cpu_prec);    
     bool isVerbose = false;
