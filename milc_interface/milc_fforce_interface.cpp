@@ -73,6 +73,7 @@ QudaGaugeParam forceParam_ex;
 #endif
 } // anonymous namespace
 
+GaugeFieldParam param_ex;
 
 template<class Real>
 static void 
@@ -133,8 +134,8 @@ allocateMomentum(const int dim[4], QudaPrecision precision)
   param.reconstruct = QUDA_RECONSTRUCT_NO;
   param.order  = QUDA_MILC_GAUGE_ORDER;
   param.reconstruct = QUDA_RECONSTRUCT_10;
-  cpuMom = new cpuGaugeField(param);
-  memset(cpuMom->Gauge_p(), 0, cpuMom->Bytes());
+  //cpuMom = new cpuGaugeField(param);
+  //memset(cpuMom->Gauge_p(), 0, cpuMom->Bytes());
   param.order  = QUDA_QDP_GAUGE_ORDER;
 
   param.precision = forceParam.cuda_prec;
@@ -197,7 +198,7 @@ hisqForceStartup(const int dim[4], QudaPrecision precision)
 //  cpuGauge = new cpuGaugeField(param);
 
   // EXTENDED
-  GaugeFieldParam param_ex(0, gaugeParam_ex);
+  param_ex = GaugeFieldParam(0, gaugeParam_ex);
   param_ex.create = QUDA_NULL_FIELD_CREATE;
   param_ex.link_type = QUDA_ASQTAD_GENERAL_LINKS; 
   // allocate memory for the host arrays
@@ -216,24 +217,18 @@ hisqForceStartup(const int dim[4], QudaPrecision precision)
   cpuOutForce_ex = new cpuGaugeField(param_ex);
   // MOMENTUM
   param.order  = QUDA_MILC_GAUGE_ORDER;
-//  param.reconstruct = QUDA_RECONSTRUCT_10;
-//  cpuMom = new cpuGaugeField(param);
-//  memset(cpuMom->Gauge_p(), 0, cpuMom->Bytes());
+  
+  param.reconstruct = QUDA_RECONSTRUCT_10;
+  cpuMom = new cpuGaugeField(param);
+  memset(cpuMom->Gauge_p(), 0, cpuMom->Bytes());
   param.order  = QUDA_QDP_GAUGE_ORDER;
 
   // STANDARD
   // allocate memory for the device arrays
-  param.precision = gaugeParam.cuda_prec;
-  param.reconstruct = QUDA_RECONSTRUCT_NO;
-  cudaGauge = new cudaGaugeField(param); // used for init lattice constants 
+  //  param.precision = gaugeParam.cuda_prec;
+  //param.reconstruct = QUDA_RECONSTRUCT_NO;
+  //cudaGauge = new cudaGaugeField(param); // used for init lattice constants 
 																			   // need to change this!!!
-
-  // EXTENDED
-  // Compressed gauge field
-  param_ex.precision = gaugeParam_ex.cuda_prec;
-  param_ex.reconstruct = QUDA_RECONSTRUCT_12;
-  cudaGaugeComp_ex = new cudaGaugeField(param_ex);
-
 
   param_ex.precision = gaugeParam_ex.cuda_prec;
   param_ex.reconstruct = QUDA_RECONSTRUCT_NO;
@@ -335,8 +330,8 @@ hisqForceEnd()
   if(cpuInForce)  { delete cpuInForce;  cpuInForce = NULL;}
   if(cpuOutForce) { delete cpuOutForce; cpuOutForce = NULL;}
   if(cpuGauge)    { delete cpuGauge;    cpuGauge = NULL;}
-#endif
   if(cudaGauge)   { delete cudaGauge;  cudaGauge = NULL;}
+#endif
   return;
 }
 
@@ -580,8 +575,7 @@ qudaHisqForce(
 
 #define QUDA_VER ((10000*QUDA_VERSION_MAJOR) + (100*QUDA_VERSION_MINOR) + QUDA_VERSION_SUBMINOR)
 #if (QUDA_VER > 400)
-  initLatticeConstants(*cudaGauge);
-  initGaugeConstants(*cudaGauge);
+  initLatticeConstants(*cpuMom);
 #else
   initGaugeFieldConstants(*cudaGauge);
 #endif
@@ -660,7 +654,9 @@ qudaHisqForce(
   int num_failures = 0;
   int* num_failures_dev;
 
-  cudaMalloc((void**)&num_failures_dev, sizeof(int));
+  if(cudaMalloc((void**)&num_failures_dev, sizeof(int)) == cudaErrorMemoryAllocation){
+    errorQuda("cudaMalloc failed for num_failures_dev\n");
+  }
   cudaMemset(num_failures_dev, 0, sizeof(int));
   // Need to change this. It's doing unnecessary work!
   timer.check();
@@ -683,6 +679,13 @@ qudaHisqForce(
   exchange_cpu_sitelink_ex(gaugeParam.X, (void**)cpuInForce_ex->Gauge_p(), cpuInForce_ex->Order(), local_precision, 0); 
   loadLinkToGPU_ex(cudaInForce_ex, cpuInForce_ex);
 */
+  
+  if(cudaGauge_ex) { delete cudaGauge_ex; cudaGauge_ex = NULL;}
+
+  param_ex.precision = gaugeParam_ex.cuda_prec;
+  param_ex.reconstruct = QUDA_RECONSTRUCT_12;
+  cudaGaugeComp_ex = new cudaGaugeField(param_ex);
+
  
   cudaMemset((void**)(cudaOutForce_ex->Gauge_p()), 0, cudaOutForce_ex->Bytes());
   cudaThreadSynchronize(); // Probably no need for this. 
@@ -703,15 +706,15 @@ qudaHisqForce(
   cudaThreadSynchronize();
   timer.check("hisqStaplesForceCuda - fat7 paths");
 
-  if(cudaInForce_ex) { delete cudaInForce_ex; cudaInForce_ex =NULL;}
-  if(cudaGauge_ex) { delete cudaGauge_ex; cudaGauge_ex = NULL;}
   if(cpuInForce_ex) { delete cpuInForce_ex; cpuInForce_ex = NULL; }
   if(cpuGauge_ex) { delete cpuGauge_ex;  cpuGauge_ex = NULL;}
+  if(cudaInForce_ex) { delete cudaInForce_ex; cudaInForce_ex =NULL;}
 
 
   allocateMomentum(layout.getLocalDim(), local_precision);
 
-  
+
+
   // Close the paths, make anti-hermitian, and store in compressed format
   hisqCompleteForceCuda(gaugeParam, *cudaOutForce_ex, *cudaGaugeComp_ex, cudaMom);
   cudaThreadSynchronize();
