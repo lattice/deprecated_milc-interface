@@ -433,6 +433,19 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
     if(fatlink != NULL) cudaFreeHost(local_fatlink);
     cudaFreeHost(local_ulink);
   }
+
+#ifdef MULTI_GPU
+  for(int dir=0; dir<4; ++dir){
+    if(usePinnedMemory){
+      cudaFreeHost(local_inlink[dir]);
+    }else{
+      free(local_inlink[dir]);
+    }
+  }
+#endif
+
+
+
   //printf(" %s returns: reducd # of syncs\n", __FUNCTION__);
   return;
 }
