@@ -120,6 +120,18 @@ void qudaLoadFatLink(int precision, QudaFatLinkArgs_t fatlink_args, const double
     copyGaugeField(volume, prec, local_outlink, outlink);
     cudaFreeHost(local_outlink);
   }
+
+#ifdef MULTI_GPU
+  for(int dir=0; dir<4; ++dir){
+   if(usePinnedMemory){
+     cudaFreeHost(local_inlink[dir]);
+   }else{
+     free(local_inlink[dir]);
+   }     
+  }
+#endif
+
+
   return;
 }
 
