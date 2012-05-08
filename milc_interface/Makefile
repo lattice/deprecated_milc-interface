@@ -55,4 +55,4 @@ $(QUDA_MILC) : ${QUDA} ../make.inc ${TEST_OBJS} ${INTERFACE_OBJS}
 
 
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) -DTIME_INTERFACE ${INC} $< -c -o $@
+	$(CXX) $(CXXFLAGS) ${INC} $< -c -o $@
