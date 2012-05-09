@@ -29,11 +29,6 @@
 
 
 
-extern int Z[4];
-extern int V;
-extern int Vh;
-static int Vs_x, Vs_y, Vs_z;
-extern int Vsh_x, Vsh_y, Vsh_z, Vsh_t;
 static int Vsh[4];
 
 
