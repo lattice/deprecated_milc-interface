@@ -124,6 +124,7 @@ setGaugeParams(QudaGaugeParam* gaugeParam,
 #endif
   gaugeParam->anisotropy = 1.0;
   gaugeParam->tadpole_coeff = 1.0;
+  gaugeParam->gauge_fix     = QUDA_GAUGE_FIXED_NO;
   return;
 }
 
