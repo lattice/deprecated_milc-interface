@@ -609,8 +609,6 @@ void qudaMultishiftInvert(int external_precision,
 
   // return the number of iterations taken by the inverter
   *num_iters = invertParam.iter;
-  cpuColorSpinorField* tempColorField = new cpuColorSpinorField(csParam);
-
   double* mass = new double[num_offsets];
   for(int i=0; i<num_offsets; ++i) mass[i] = sqrt(offset[i])/2.0;
 
