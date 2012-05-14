@@ -376,9 +376,10 @@ norm_gauge_field(void** _gauge, int volume, QudaPrecision prec)
       }
     }
   }
-  
+
+#ifdef MPI_COMMS
   comm_allreduce(&norm);
-  
+#endif
   return norm;
 
 }
