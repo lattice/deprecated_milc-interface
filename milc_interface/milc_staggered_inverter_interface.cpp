@@ -420,14 +420,13 @@ void qudaMultishiftInvert(int external_precision,
 
 
   QudaPrecision host_precision, device_precision, device_precision_sloppy;
-  const bool use_mixed_precision = ((quda_precision==2) && inv_args.mixed_precision) ? true : false;
-
-  if(use_mixed_precision){
-    printfQuda("Using mixed double-precision multi-mass inverter\n");
-  }else if(quda_precision == 2){
-    printfQuda("Using double-precision multi-mass inverter\n");
+  //const bool use_mixed_precision = ((quda_precision==2) && inv_args.mixed_precision) ? true : false;
+  const bool use_mixed_precision = inv_args.mixed_precision;
+  
+  if(quda_precision == 2){
+    printfQuda("Using %s double-precision multi-mass inverter\n", use_mixed_precision?"mixed":"pure");
   }else if(quda_precision == 1){
-    printfQuda("Using single-precision multi-mass inverter\n");
+    printfQuda("Using %s single-precision multi-mass inverter\n", use_mixed_precision?"mixed":"pure");
   }else{
     errorQuda("Unrecognised precision\n");
     exit(1);
@@ -435,16 +434,16 @@ void qudaMultishiftInvert(int external_precision,
 
   if(quda_precision==1){
    host_precision  = device_precision =  QUDA_SINGLE_PRECISION;
-   device_precision_sloppy = use_mixed_precision ? QUDA_HALF_PRECISION : QUDA_SINGLE_PRECISION;
+   device_precision_sloppy = QUDA_SINGLE_PRECISION;
   }else if(quda_precision==2){
-   host_precision = device_precision =  QUDA_DOUBLE_PRECISION;
-   if(inv_args.mixed_precision == 0){
-     device_precision_sloppy = QUDA_DOUBLE_PRECISION;
-   }else if(inv_args.mixed_precision == 1){
-     device_precision_sloppy = QUDA_SINGLE_PRECISION;
-   }else{
-     device_precision_sloppy = QUDA_HALF_PRECISION;
-   }	
+    host_precision = device_precision =  QUDA_DOUBLE_PRECISION;
+    if(inv_args.mixed_precision == 0){
+      device_precision_sloppy = QUDA_DOUBLE_PRECISION;
+    }else if(inv_args.mixed_precision == 1){
+      device_precision_sloppy = QUDA_SINGLE_PRECISION;
+    }else{
+      device_precision_sloppy = QUDA_HALF_PRECISION;
+    }	
   }else{
     errorQuda("qudaMultishiftInvert: unrecognised precision\n");
     exit(1);
