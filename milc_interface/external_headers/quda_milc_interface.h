@@ -19,6 +19,7 @@ extern "C" {
 	typedef struct {
 		const int* latsize;
 		const int* machsize; // grid size
+		int device; // device  number 
 	} QudaLayout_t; 
 
 
