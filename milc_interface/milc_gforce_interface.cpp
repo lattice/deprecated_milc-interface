@@ -116,7 +116,7 @@ setGaugeParams(QudaGaugeParam* gaugeParam,
   gaugeParam->cpu_prec = cpu_prec;
   gaugeParam->cuda_prec = cuda_prec;
   gaugeParam->reconstruct = link_recon;
-  gaugeParam->type = QUDA_WILSON_LINKS;
+  gaugeParam->type = QUDA_SU3_LINKS;
 #ifdef MULTI_GPU // use the QDP ordering scheme for the internal host fields
   gaugeParam->gauge_order = QUDA_QDP_GAUGE_ORDER;
 #else

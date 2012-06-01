@@ -284,7 +284,7 @@ void qudaCloverInvert(int external_precision,
   invertParam.preserve_source               = QUDA_PRESERVE_SOURCE_NO;
   invertParam.gamma_basis 	            = QUDA_DEGRAND_ROSSI_GAMMA_BASIS;
   invertParam.dirac_order		    = QUDA_DIRAC_ORDER;
-  invertParam.tune	            	    = QUDA_TUNE_NO;
+  invertParam.tune	            	    = QUDA_TUNE_YES;
   invertParam.sp_pad		            = 0;
   invertParam.cl_pad 		            = 0;
   if(invertParam.dslash_type == QUDA_CLOVER_WILSON_DSLASH){

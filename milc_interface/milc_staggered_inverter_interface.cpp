@@ -183,7 +183,7 @@ setInvertParams(const int dim[4],
   invertParam->dirac_order = QUDA_DIRAC_ORDER;
 
   invertParam->dslash_type = QUDA_ASQTAD_DSLASH;
-  invertParam->tune = QUDA_TUNE_NO;
+  invertParam->tune = QUDA_TUNE_YES;
 
 
  
@@ -552,20 +552,20 @@ void qudaMultishiftInvert(int external_precision,
         &gaugeParam);
   }else{
 #ifdef MULTI_GPU
-    gaugeParam.type = QUDA_ASQTAD_FAT_LINKS;
+    gaugeParam.type = QUDA_GENERAL_LINKS;
     gaugeParam.ga_pad = fat_pad;  // don't know if this is correct
     gaugeParam.reconstruct = gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
     loadGaugeQuda(fatlink, &gaugeParam); 
 
-    gaugeParam.type = QUDA_ASQTAD_LONG_LINKS;
+    gaugeParam.type = QUDA_THREE_LINKS;
     gaugeParam.ga_pad = long_pad; // don't know if this will work
     loadGaugeQuda(longlink, &gaugeParam);
 #else // single-gpu code
-    gaugeParam.type = QUDA_ASQTAD_FAT_LINKS;
+    gaugeParam.type = QUDA_GENERAL_LINKS;
     gaugeParam.reconstruct = gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
     loadGaugeQuda(fatlink, &gaugeParam);
 
-    gaugeParam.type = QUDA_ASQTAD_LONG_LINKS;
+    gaugeParam.type = QUDA_THREE_LINKS;
     loadGaugeQuda(longlink, &gaugeParam);
 #endif
   }
@@ -845,20 +845,20 @@ void qudaInvert(int external_precision,
 
   // No mixed precision here, it seems
 #ifdef MULTI_GPU
-    gaugeParam.type = QUDA_ASQTAD_FAT_LINKS;
+    gaugeParam.type = QUDA_GENERAL_LINKS;
     gaugeParam.ga_pad = fat_pad; 
     gaugeParam.reconstruct = gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
     loadGaugeQuda(fatlink, &gaugeParam); 
 
-    gaugeParam.type = QUDA_ASQTAD_LONG_LINKS;
+    gaugeParam.type = QUDA_THREE_LINKS;
     gaugeParam.ga_pad = long_pad; 
     loadGaugeQuda(longlink, &gaugeParam);
 #else // single-gpu code
-    gaugeParam.type = QUDA_ASQTAD_FAT_LINKS;
+    gaugeParam.type = QUDA_GENERAL_LINKS;
     gaugeParam.reconstruct = gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
     loadGaugeQuda(fatlink, &gaugeParam);
 
-    gaugeParam.type = QUDA_ASQTAD_LONG_LINKS;
+    gaugeParam.type = QUDA_THREE_LINKS;
     loadGaugeQuda(longlink, &gaugeParam);
 #endif
 

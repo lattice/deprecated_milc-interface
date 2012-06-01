@@ -254,7 +254,7 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
   // create the host fatlink
   if(cpuFatLink == NULL && fatlink != NULL){
     gParam.create = QUDA_REFERENCE_FIELD_CREATE;
-    gParam.link_type = QUDA_ASQTAD_FAT_LINKS;
+    gParam.link_type = QUDA_GENERAL_LINKS;
     gParam.order = QUDA_MILC_GAUGE_ORDER;
     gParam.gauge = local_fatlink;
     cpuFatLink = new cpuGaugeField(gParam);
@@ -268,7 +268,7 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
    // create the host fatlink
   if(cpuUnitarizedLink == NULL){
     gParam.create = QUDA_REFERENCE_FIELD_CREATE;
-    gParam.link_type = QUDA_ASQTAD_FAT_LINKS;
+    gParam.link_type = QUDA_GENERAL_LINKS;
     gParam.order = QUDA_MILC_GAUGE_ORDER;
     gParam.gauge = local_ulink;
     cpuUnitarizedLink = new cpuGaugeField(gParam);
@@ -283,7 +283,7 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
   if(cudaFatLink == NULL){
     gParam.pad    = param.llfat_ga_pad;
     gParam.create = QUDA_ZERO_FIELD_CREATE;
-    gParam.link_type = QUDA_ASQTAD_FAT_LINKS;
+    gParam.link_type = QUDA_GENERAL_LINKS;
     gParam.order = QUDA_QDP_GAUGE_ORDER;
     gParam.reconstruct = QUDA_RECONSTRUCT_NO;
     cudaFatLink = new cudaGaugeField(gParam);
@@ -293,7 +293,7 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
   if(cudaUnitarizedLink == NULL){
     gParam.pad    = param.llfat_ga_pad;
     gParam.create = QUDA_ZERO_FIELD_CREATE;
-    gParam.link_type = QUDA_ASQTAD_FAT_LINKS;
+    gParam.link_type = QUDA_GENERAL_LINKS;
     gParam.order = QUDA_QDP_GAUGE_ORDER;
     gParam.reconstruct = QUDA_RECONSTRUCT_NO;
     cudaUnitarizedLink = new cudaGaugeField(gParam);

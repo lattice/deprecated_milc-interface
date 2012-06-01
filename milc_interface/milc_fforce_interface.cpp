@@ -120,15 +120,15 @@ allocateMomentum(const int dim[4], QudaPrecision precision)
   
   gaugeParam.cpu_prec = gaugeParam.cuda_prec = precision;
   gaugeParam.reconstruct = QUDA_RECONSTRUCT_NO;
-  gaugeParam.type = QUDA_WILSON_LINKS; // ??
+  gaugeParam.type = QUDA_SU3_LINKS; // ??
 
   forceParam.cpu_prec = forceParam.cuda_prec = precision;
   forceParam.reconstruct = QUDA_RECONSTRUCT_NO;
-  forceParam.type = QUDA_ASQTAD_GENERAL_LINKS; // ??
+  forceParam.type = QUDA_GENERAL_LINKS; // ??
 
   GaugeFieldParam param(0, gaugeParam);
   param.create = QUDA_NULL_FIELD_CREATE;
-  param.link_type = QUDA_ASQTAD_GENERAL_LINKS; 
+  param.link_type = QUDA_GENERAL_LINKS; 
   // allocate memory for the host arrays
   param.precision = gaugeParam.cpu_prec;
   param.reconstruct = QUDA_RECONSTRUCT_NO;
@@ -171,27 +171,27 @@ hisqForceStartup(const int dim[4], QudaPrecision precision)
   // STANDARD
   gaugeParam.cpu_prec = gaugeParam.cuda_prec = precision;
   gaugeParam.reconstruct = QUDA_RECONSTRUCT_NO;
-  gaugeParam.type = QUDA_WILSON_LINKS; // ??
+  gaugeParam.type = QUDA_SU3_LINKS; // ??
 
   // EXTENDED
   gaugeParam_ex.cpu_prec = gaugeParam_ex.cuda_prec = precision;
   gaugeParam_ex.reconstruct = QUDA_RECONSTRUCT_NO;
-  gaugeParam_ex.type = QUDA_WILSON_LINKS; // ??
+  gaugeParam_ex.type = QUDA_SU3_LINKS; // ??
 
   // STANDARD
   forceParam.cpu_prec = forceParam.cuda_prec = precision;
   forceParam.reconstruct = QUDA_RECONSTRUCT_NO;
-  forceParam.type = QUDA_ASQTAD_GENERAL_LINKS; // ??
+  forceParam.type = QUDA_GENERAL_LINKS; // ??
 
   // EXTENDED
   forceParam_ex.cpu_prec = forceParam_ex.cuda_prec = precision;
   forceParam_ex.reconstruct = QUDA_RECONSTRUCT_NO;
-  forceParam_ex.type = QUDA_WILSON_LINKS; // ??
+  forceParam_ex.type = QUDA_SU3_LINKS; // ??
 
   // STANDARD
   GaugeFieldParam param(0, gaugeParam);
   param.create = QUDA_NULL_FIELD_CREATE;
-  param.link_type = QUDA_ASQTAD_GENERAL_LINKS; 
+  param.link_type = QUDA_GENERAL_LINKS; 
   // allocate memory for the host arrays
   param.precision = gaugeParam.cpu_prec;
   param.reconstruct = QUDA_RECONSTRUCT_NO;
@@ -200,7 +200,7 @@ hisqForceStartup(const int dim[4], QudaPrecision precision)
   // EXTENDED
   param_ex = GaugeFieldParam(0, gaugeParam_ex);
   param_ex.create = QUDA_NULL_FIELD_CREATE;
-  param_ex.link_type = QUDA_ASQTAD_GENERAL_LINKS; 
+  param_ex.link_type = QUDA_GENERAL_LINKS; 
   // allocate memory for the host arrays
   param_ex.precision = gaugeParam.cpu_prec;
   param_ex.reconstruct = QUDA_RECONSTRUCT_NO;
@@ -479,7 +479,7 @@ void qudaComputeOuterProduct(int precision,
   qudaGaugeParam.anisotropy  = 1.0;
 
   GaugeFieldParam gParam(0, qudaGaugeParam);
-  gParam.link_type = QUDA_ASQTAD_GENERAL_LINKS;
+  gParam.link_type = QUDA_GENERAL_LINKS;
   gParam.create    = QUDA_REFERENCE_FIELD_CREATE;
   gParam.v = (void*)one_link_src;
   cpuGaugeField  *cpuOprod 	   = new cpuGaugeField(gParam);
@@ -627,6 +627,7 @@ qudaHisqForce(
 
   // Load naik outer product
   extendQDPGaugeField(gaugeParam.X, local_precision, naik_src, (void**)cpuInForce_ex->Gauge_p());
+  printfQuda("extendQDPGaugeField call complete\n");
   exchange_cpu_sitelink_ex(gaugeParam.X, R, (void**)cpuInForce_ex->Gauge_p(), cpuInForce_ex->Order(), local_precision, 0); 
   loadLinkToGPU_ex(cudaInForce_ex, cpuInForce_ex);
   timer.check("Load naik_src");
