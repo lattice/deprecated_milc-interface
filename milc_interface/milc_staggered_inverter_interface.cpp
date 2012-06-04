@@ -184,7 +184,7 @@ setInvertParams(const int dim[4],
 
   invertParam->dslash_type = QUDA_ASQTAD_DSLASH;
   invertParam->tune = QUDA_TUNE_YES;
-
+  invertParam->gflops = 0.0;
 
  
   if(parity == QUDA_EVEN_PARITY){ // even parity
@@ -580,10 +580,12 @@ void qudaMultishiftInvert(int external_precision,
 
   if(use_mixed_precision){
     invertMultiShiftQudaMixed(localSolutionArray, localSource, &invertParam, offset, num_offsets, residue_sq);
-	  timer.check("invertMultiShiftQudaMixed");
+    printfQuda("invertMultiShiftQudaMixed GFLOPS = %lf\n", invertParam.gflops/invertParam.secs);
+    timer.check("invertMultiShiftQudaMixed");
   }else{
     invertMultiShiftQuda(localSolutionArray, localSource, &invertParam, offset, num_offsets, residue_sq);
-	  timer.check("invertMultiShiftQuda");
+    printfQuda("invertMultiShiftQuda GFLOPS = %lf\n", invertParam.gflops/invertParam.secs);
+    timer.check("invertMultiShiftQuda");
   }
 
 
@@ -760,7 +762,7 @@ void qudaInvert(int external_precision,
   setGaugeParams(local_dim, host_precision, device_precision, device_precision_sloppy, &gaugeParam);
   
   QudaInvertParam invertParam = newQudaInvertParam();
-  const bool isVerbose = false;
+  const bool isVerbose = true;
   QudaParity local_parity;
 
 #ifdef MULTI_GPU 
@@ -865,7 +867,8 @@ void qudaInvert(int external_precision,
    timer.check("Set up and data load");
 
    invertQuda(localSolution, localSource, &invertParam); 
-
+   printfQuda("invertQuda GFLOPS = %lf\n", invertParam.gflops/invertParam.secs);
+   
    timer.check("invertQuda");
 
 
