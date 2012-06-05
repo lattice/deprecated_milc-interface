@@ -580,10 +580,14 @@ void qudaMultishiftInvert(int external_precision,
 
   if(use_mixed_precision){
     invertMultiShiftQudaMixed(localSolutionArray, localSource, &invertParam, offset, num_offsets, residue_sq);
+    printfQuda("QudaInverParam.gflops = %lf\n", invertParam.gflops);
+    printfQuda("QudaInvertParam.secs = %lf\n", invertParam.secs);
     printfQuda("invertMultiShiftQudaMixed GFLOPS = %lf\n", invertParam.gflops/invertParam.secs);
     timer.check("invertMultiShiftQudaMixed");
   }else{
     invertMultiShiftQuda(localSolutionArray, localSource, &invertParam, offset, num_offsets, residue_sq);
+    printfQuda("QudaInverParam.gflops = %lf\n", invertParam.gflops);
+    printfQuda("QudaInvertParam.secs = %lf\n", invertParam.secs);
     printfQuda("invertMultiShiftQuda GFLOPS = %lf\n", invertParam.gflops/invertParam.secs);
     timer.check("invertMultiShiftQuda");
   }
