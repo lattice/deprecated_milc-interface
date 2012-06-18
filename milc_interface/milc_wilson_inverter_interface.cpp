@@ -148,7 +148,6 @@ setColorSpinorParams(const int dim[4],
 		     ColorSpinorParam* param)
 {
 
-  param->fieldLocation = QUDA_CPU_FIELD_LOCATION;
   param->nColor = 3;
   param->nSpin = 4;
   param->nDim = 4;
