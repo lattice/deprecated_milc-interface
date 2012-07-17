@@ -99,7 +99,7 @@ double computeFermilabResidual(cpuColorSpinorField & solutionColorField,  cpuCol
        num_normsq += num_element*num_element;
        denom_normsq += denom_element*denom_element;
      }   
-     residual += sqrt(num_normsq/denom_normsq);  
+     residual += (num_normsq/denom_normsq);  
    } // end loop over half volume
  
   size_t total_volume = volume;
@@ -108,7 +108,7 @@ double computeFermilabResidual(cpuColorSpinorField & solutionColorField,  cpuCol
   total_volume *= comm_size(); // multiply the local volume by the number of nodes 
 #endif                         // to get the total volume
  
-   return residual/total_volume; 
+   return sqrt(residual/total_volume); 
 }
 
 
