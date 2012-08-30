@@ -99,7 +99,6 @@ void qudaLoadFatLink(int precision, QudaFatLinkArgs_t fatlink_args, const double
   param.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
   param.gauge_fix   	   = QUDA_GAUGE_FIXED_NO;
   param.ga_pad      	   = 0;
-  param.packed_size 	   = 0;
   param.gaugeGiB    	   = 0;
 
 
@@ -212,7 +211,6 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
   param.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
   param.gauge_fix   	   = QUDA_GAUGE_FIXED_NO;
   param.ga_pad      	   = 0;
-  param.packed_size 	   = 0;
   param.gaugeGiB    	   = 0;
   param.preserve_gauge     = false;
 
