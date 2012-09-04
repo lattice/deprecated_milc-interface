@@ -39,6 +39,8 @@
 //******************************************************************//
 
 
+using namespace quda;
+
 namespace { // anonymous namespace
 
 cudaGaugeField *cudaGauge = NULL;
