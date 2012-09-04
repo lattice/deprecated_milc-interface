@@ -674,13 +674,6 @@ qudaHisqForce(
   } 
   
   // update boundaries
-/*
-  cudaInForce_ex->saveCPUField(*cpuInForce_ex, QUDA_CPU_FIELD_LOCATION);
-  updateExtendedQDPBorders(gaugeParam.X, local_precision, (void** const)cpuInForce_ex->Gauge_p());
-  exchange_cpu_sitelink_ex(gaugeParam.X, (void**)cpuInForce_ex->Gauge_p(), cpuInForce_ex->Order(), local_precision, 0); 
-  loadLinkToGPU_ex(cudaInForce_ex, cpuInForce_ex);
-*/
-  
   if(cudaGauge_ex) { delete cudaGauge_ex; cudaGauge_ex = NULL;}
 
   param_ex.precision = gaugeParam_ex.cuda_prec;
@@ -715,7 +708,6 @@ qudaHisqForce(
   allocateMomentum(layout.getLocalDim(), local_precision);
 
 
-
   // Close the paths, make anti-hermitian, and store in compressed format
   hisqCompleteForceCuda(gaugeParam, *cudaOutForce_ex, *cudaGaugeComp_ex, cudaMom);
   cudaThreadSynchronize();
@@ -745,7 +737,7 @@ qudaHisqForce(
 	      void* const milc_momentum)
 {
   printfQuda("Calling qudaHisqForce\n");
-  using namespace hisq::fermion_force;
+  using namespace quda::fermion_force;
 
   double act_path_coeff[6];
   double fat7_act_path_coeff[6];
