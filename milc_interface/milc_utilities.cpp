@@ -1,9 +1,14 @@
-#include "include/utilities.h"
+#include "include/milc_utilities.h"
 #include <iostream>
 #include <iomanip>
 #include <map>
 #include <cuda_runtime.h> // Needed for cudaMallocHost
 #include <string.h>
+
+
+namespace milc_interface {
+
+QudaVerbosity PersistentData::verbosity = QUDA_SILENT;
 
 
 void Layout::setLocalDim(const int X[4])
@@ -323,3 +328,4 @@ void updateExtendedQDPBorders(const int dim[4], QudaPrecision precision, void** 
   return;
 } // updateExtendedQDPBorders
 
+} // namespace milc_interface

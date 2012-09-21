@@ -1,9 +1,13 @@
 #include <iostream>
 #include <iomanip>
-#include "include/timer.h"
+#include "include/milc_timer.h"
 #include <util_quda.h>
 #include <string.h>
 #include <cstring>
+
+
+
+namespace milc_interface {
 
 Timer::Timer(const std::string& timer_tag) : tag(timer_tag), _mute(false){
   init_time = ((double)clock());
@@ -52,4 +56,4 @@ void Timer::stop(){
 }
 
 
-
+}; // namespace milc_interface

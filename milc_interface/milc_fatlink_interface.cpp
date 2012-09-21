@@ -11,14 +11,18 @@
 #include <gauge_field.h>
 #include "external_headers/quda_milc_interface.h"
 
-#include "include/utilities.h"
+#include "include/milc_utilities.h"
 
-#include "include/timer.h"
+#include "include/milc_timer.h"
 
 
 
 
 // No need to do this if I return a pointer
+
+
+namespace milc_interface {
+
 void copyGaugeField(int volume, QudaPrecision prec, void* src, void* dst)
 {
   const int realSize = getRealSize(prec);
@@ -29,10 +33,8 @@ void copyGaugeField(int volume, QudaPrecision prec, void* src, void* dst)
 }
 
 
-
 void assignQDPGaugeField(const int dim[4], QudaPrecision precision, void* src, void** dst)
 {
-
   const int matrix_size = 18*getRealSize(precision);
   const int volume = getVolume(dim);
 
@@ -45,12 +47,17 @@ void assignQDPGaugeField(const int dim[4], QudaPrecision precision, void* src, v
   return;
 }
 
+} // namespace milc_interface
+
+
+
 
 
 void qudaLoadFatLink(int precision, QudaFatLinkArgs_t fatlink_args, const double act_path_coeff[6], void* inlink, void* outlink)
 {
-  printfQuda("Calling qudaLoadFatLink\n");
-  Timer timer("qudaLoadFatLink");
+  using namespace milc_interface;
+
+  milc_interface::Timer timer("qudaLoadFatLink");
 #ifndef TIME_INTERFACE
   timer.mute();
 #endif
@@ -62,7 +69,8 @@ void qudaLoadFatLink(int precision, QudaFatLinkArgs_t fatlink_args, const double
   const int volume = local_latt_info.getVolume();
 #ifdef MULTI_GPU  
   QudaComputeFatMethod method = QUDA_COMPUTE_FAT_STANDARD;
-#else 
+  //QudaComputeFatMethod method = QUDA_COMPUTE_FAT_EXTENDED_VOLUME;
+#else
   QudaComputeFatMethod method = QUDA_COMPUTE_FAT_STANDARD;
 #endif
 
@@ -145,8 +153,9 @@ void qudaLoadFatLink(int precision, QudaFatLinkArgs_t fatlink_args, const double
 // Otherwise, I can just copy pointers.
 void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const double path_coeff[6], void* inlink, void* fatlink, void* ulink)
 {
-  printfQuda("Calling qudaLoadUnitrizedLink\n");
-  Timer timer("qudaLoadUnitarizedLink");
+  using namespace milc_interface;
+
+  milc_interface::Timer timer("qudaLoadUnitarizedLink");
 #ifndef TIME_INTERFACE
   timer.mute();
 #endif
@@ -174,9 +183,12 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
 
   const QudaPrecision prec = (precision==1) ? QUDA_SINGLE_PRECISION : QUDA_DOUBLE_PRECISION;
 
-  QudaComputeFatMethod method = QUDA_COMPUTE_FAT_STANDARD;
+
+  QudaComputeFatMethod method;
 
 #ifdef MULTI_GPU
+//  method = QUDA_COMPUTE_FAT_EXTENDED_VOLUME;
+  method = QUDA_COMPUTE_FAT_STANDARD;
   void* local_inlink[4];
   if(method == QUDA_COMPUTE_FAT_STANDARD){
     for(int dir=0; dir<4; ++dir) allocateColorField(volume, prec, usePinnedMemory, local_inlink[dir]);
@@ -187,6 +199,7 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
     assignExtendedQDPGaugeField(local_dim, prec, inlink, local_inlink);
   }
 #else
+  method = QUDA_COMPUTE_FAT_STANDARD;
   void* local_inlink = inlink;
 #endif
 
@@ -442,8 +455,5 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
   }
 #endif
 
-
-
-  //printf(" %s returns: reducd # of syncs\n", __FUNCTION__);
   return;
 }

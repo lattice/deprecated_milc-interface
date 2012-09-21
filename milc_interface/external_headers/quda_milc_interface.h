@@ -9,9 +9,8 @@ extern "C" {
 
 	typedef struct {
 		int max_iter;
-		double restart_tolerance;
 		QudaParity evenodd; // options are QUDA_EVEN_PARITY, QUDA_ODD_PARITY, QUDA_INVALID_PARITY
-	        int mixed_precision;
+	  int mixed_precision;
 		double boundary_phase[4];
 	} QudaInvertArgs_t;
 
@@ -21,6 +20,12 @@ extern "C" {
 		const int* machsize; // grid size
 		int device; // device  number 
 	} QudaLayout_t; 
+
+
+  typedef struct {
+	  QudaVerbosity verbosity;
+	  QudaLayout_t layout;
+  } QudaInitArgs_t; // passed to the initialization struct
 
 
 	typedef struct {
@@ -38,8 +43,9 @@ extern "C" {
 	} QudaFatLinkArgs_t;
 
 
+	void qudaInit(QudaInitArgs_t input);
 
-	void qudaInit(QudaLayout_t layout);
+  void qudaSetLayout(QudaLayout_t layout);
 
 	void qudaFinalize();
 
@@ -124,13 +130,13 @@ extern "C" {
 			void* milc_momentum);
 
 
-        void qudaComputeOuterProduct(int precision, 
-			     double one_hop_coeff[],
-			     double three_hop_coeff[],
-			     int num_terms,
-			     void** quark_fields,
-			     void* const one_link_src[4], 
-			     void* const three_link_src[4]);
+  void qudaComputeOuterProduct(int precision, 
+			 double one_hop_coeff[],
+			 double three_hop_coeff[],
+			 int num_terms,
+			 void** quark_fields,
+			 void* const one_link_src[4], 
+			 void* const three_link_src[4]);
 
 
 

@@ -14,7 +14,7 @@
 #include <dirac_quda.h>
 #include <blas_quda.h>
 #include "external_headers/quda_milc_interface.h"
-#include "include/timer.h"
+#include "include/milc_timer.h"
 
 
 #ifdef MULTI_GPU
@@ -25,12 +25,11 @@
 
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
-#include "include/utilities.h"
+#include "include/milc_utilities.h"
 
-
+namespace milc_interface {
 
 static int Vsh[4];
-
 
 static void
 setDimConstants(const int X[4])
@@ -99,7 +98,7 @@ double computeFermilabResidual(cpuColorSpinorField & solutionColorField,  cpuCol
        num_normsq += num_element*num_element;
        denom_normsq += denom_element*denom_element;
      }   
-     residual += (num_normsq/denom_normsq);  
+     residual += (denom_normsq==0) ? 1.0 : (num_normsq/denom_normsq);  
    } // end loop over half volume
  
   size_t total_volume = volume;
@@ -107,7 +106,8 @@ double computeFermilabResidual(cpuColorSpinorField & solutionColorField,  cpuCol
   comm_allreduce(&residual);
   total_volume *= comm_size(); // multiply the local volume by the number of nodes 
 #endif                         // to get the total volume
- 
+
+
    return sqrt(residual/total_volume); 
 }
 
@@ -149,27 +149,25 @@ setInvertParams(const int dim[4],
                 QudaPrecision cpu_prec,
                 QudaPrecision cuda_spinor_prec,
                 QudaPrecision cuda_spinor_prec_sloppy,
-	        double mass,
+	              double mass,
                 double target_residual, 
                 int maxiter,
                 double reliable_delta,
                 QudaParity parity,
-                bool isVerbose,
-		QudaInvertParam *invertParam)
+                QudaVerbosity verbosity,
+							  QudaInvertParam *invertParam)
 {
-
-  if(isVerbose){
-    invertParam->verbosity = QUDA_VERBOSE;
-  }else{
-    invertParam->verbosity = QUDA_SILENT;
-  }
+  invertParam->verbosity = verbosity;
   invertParam->mass = mass;
-  invertParam->inv_type = QUDA_CG_INVERTER;
   invertParam->tol = target_residual;
+  invertParam->num_offset = 0;
+
+  invertParam->inv_type = QUDA_CG_INVERTER;
   invertParam->maxiter = maxiter;
-  //invertParam->reliable_delta = reliable_delta; 
-  invertParam->reliable_delta = 1e-2; // WARNING - THIS IS NOT A GOOD IDEA!
-  
+  invertParam->reliable_delta = reliable_delta;
+ 
+
+ 
   invertParam->mass_normalization = QUDA_MASS_NORMALIZATION;
   invertParam->cpu_prec = cpu_prec;
   invertParam->cuda_prec = cuda_spinor_prec;
@@ -203,10 +201,47 @@ setInvertParams(const int dim[4],
   return;
 }
 
+// Set params for the multi-mass solver.
+static void
+setInvertParams(const int dim[4],
+                QudaPrecision cpu_prec,
+                QudaPrecision cuda_spinor_prec,
+                QudaPrecision cuda_spinor_prec_sloppy,
+								int num_offset,
+                const double offset[],
+                const double target_residual_offset[],
+							  const double target_residual_hq_offset[],
+                int maxiter,
+                double reliable_delta,
+                QudaParity parity,
+                QudaVerbosity verbosity,
+                QudaInvertParam *invertParam)
+{
+
+   const double null_mass = -1;
+   const double null_residual = -1;
+
+
+   setInvertParams(dim, cpu_prec, cuda_spinor_prec, cuda_spinor_prec_sloppy, 
+									 null_mass, null_residual, maxiter, reliable_delta, parity, verbosity, invertParam);
+	
+   invertParam->num_offset = num_offset;
+   for(int i=0; i<num_offset; ++i){
+     invertParam->offset[i] = offset[i];
+     invertParam->tol_offset[i] = target_residual_offset[i];
+     if(invertParam->residual_type == QUDA_HEAVY_QUARK_RESIDUAL){
+	     invertParam->tol_hq_offset[i] = target_residual_hq_offset[i];
+	   }
+   }
+  return;
+}
+
+
+
 static void
 setColorSpinorParams(const int dim[4],
                      QudaPrecision precision,
-		     ColorSpinorParam* param)
+		     					   ColorSpinorParam* param)
 {
 
   param->nColor = 3;
@@ -240,86 +275,6 @@ int getFatLinkPadding(const int dim[4])
   return padding;
 }
 
-
-/*
-template<class MilcReal, class QudaReal>
-static void
-reorderMilcLinks(const MilcReal* const src, int volume, QudaReal* const dst[4])
-{
-  for(int i=0; i<volume; ++i){
-    for(int dir=0; dir<4; ++dir){
-      for(int j=0; j<18; ++j){
-        dst[dir][i*18+j] = src[(i*4+dir)*18+j];
-      }  
-    }
-  }
-  return;
-}
-
-
-template<class MilcReal, class QudaReal>
-static void 
-reorderMilcLinks(const MilcReal* const src, bool exchange_parity, int volume, QudaReal* const dst[4])
-{
-  const size_t offset = (exchange_parity) ? volume/2 : 0;
-  
-  for(int i=0; i<volume/2; ++i){
-	  for(int dir=0; dir<4; ++dir){
-		  for(int j=0; j<18; ++j){
-				dst[dir][i*18+j] = src[((i+offset)*4+dir)*18+j];
-			}
-		}
-	}
-
-  for(int i=volume/2; i<volume; ++i){
-	  for(int dir=0; dir<4; ++dir){
-		  for(int j=0; j<18; ++j){
-				dst[dir][i*18+j] = src[((i-offset)*4+dir)*18+j];
-			}
-		}
-	}
-
-  return;
-}
-
-
-
-class  MilcFieldLoader
-{
-  const QudaPrecision milc_precision;
-  const QudaPrecision quda_precision;
-  int volume;
-  bool exchange_parity; 
-    
-  public:
-    MilcFieldLoader(const QudaPrecision & milc_prec, const QudaGaugeParam & gaugeParam, bool exchange);
-    void loadGaugeField(const void* const milc_field, void* quda_field[4]) const;
-    void loadQuarkField(const void* &milc_field, void* &quda_field) const; 
-};
-
-MilcFieldLoader::MilcFieldLoader(const QudaPrecision & milc_prec, const QudaGaugeParam & gaugeParam, bool exchange)
- : milc_precision(milc_prec), quda_precision(gaugeParam.cpu_prec), volume(1), exchange_parity(exchange)
-{
-  for(int dir=0; dir<4; ++dir) volume *= gaugeParam.X[dir];
-}
-
-
-void MilcFieldLoader::loadGaugeField(const void* const milc_field, void* quda_field[4]) const
-{
-  if(milc_precision == quda_precision && milc_precision == QUDA_SINGLE_PRECISION){
-    reorderMilcLinks((float*)milc_field, exchange_parity, volume, (float**)quda_field); 
-  }else if(milc_precision == quda_precision && milc_precision == QUDA_DOUBLE_PRECISION){
-    reorderMilcLinks((double*)milc_field, exchange_parity, volume, (double**)quda_field); 
-  }else if(milc_precision == QUDA_SINGLE_PRECISION && quda_precision == QUDA_DOUBLE_PRECISION){
-    reorderMilcLinks((float*)milc_field, exchange_parity, volume, (double**)quda_field);
-  }else if(milc_precision == QUDA_DOUBLE_PRECISION && quda_precision == QUDA_SINGLE_PRECISION){
-    reorderMilcLinks((double*)milc_field, exchange_parity, volume, (float**)quda_field);
-  }else{
-	  errorQuda("Invalid precision\n");
-  }
-  return;
-}
-*/
 
 
 void loadColorVector(QudaPrecision milc_precision, const QudaGaugeParam & gaugeParam, void** const milc_field_ptr, void** quda_field_ptr)
@@ -383,13 +338,16 @@ norm_gauge_field(void** _gauge, int volume, QudaPrecision prec)
 
 }
 
+} // namespace milc_interface
+
+
 void qudaMultishiftInvert(int external_precision, 
                       int quda_precision,
                       int num_offsets,
                       double* const offset,
-		      QudaInvertArgs_t inv_args,
+		      						QudaInvertArgs_t inv_args,
                       double target_residual, 
-		      double target_fermilab_residual,
+		      						double target_fermilab_residual,
                       const void* const milc_fatlink,
                       const void* const milc_longlink,
                       void* source,
@@ -399,13 +357,16 @@ void qudaMultishiftInvert(int external_precision,
                       int *num_iters)
 {
 
+  using namespace milc_interface;
 
-  if(target_fermilab_residual != 0){
-    errorQuda("qudaMultishiftInvert: requested relative residual must be zero\n");
+
+  if(target_residual == 0){
+    errorQuda("qudaMultishiftInvert: target residual cannot be zero\n");
     exit(1);
   }
+  
 
-  Timer timer("qudaMultishiftInvert"); 
+  milc_interface::Timer timer("qudaMultishiftInvert"); 
 #ifndef TIME_INTERFACE
   timer.mute();
 #endif
@@ -419,21 +380,25 @@ void qudaMultishiftInvert(int external_precision,
 
 
   QudaPrecision host_precision, device_precision, device_precision_sloppy;
-  //const bool use_mixed_precision = ((quda_precision==2) && inv_args.mixed_precision) ? true : false;
-  const bool use_mixed_precision = inv_args.mixed_precision;
-  
-  if(quda_precision == 2){
-    printfQuda("Using %s double-precision multi-mass inverter\n", use_mixed_precision?"mixed":"pure");
-  }else if(quda_precision == 1){
-    printfQuda("Using %s single-precision multi-mass inverter\n", use_mixed_precision?"mixed":"pure");
-  }else{
-    errorQuda("Unrecognised precision\n");
-    exit(1);
+  const bool use_mixed_precision = ((quda_precision==2) && inv_args.mixed_precision) ? true : false;
+  PersistentData pd;
+  static const QudaVerbosity verbosity = pd.getVerbosity();
+ 
+  if(verbosity >= QUDA_VERBOSE){ 
+    if(quda_precision == 2){
+      printfQuda("Using %s double-precision multi-mass inverter\n", use_mixed_precision?"mixed":"pure");
+    }else if(quda_precision == 1){
+      printfQuda("Using %s single-precision multi-mass inverter\n", use_mixed_precision?"mixed":"pure");
+    }else{
+      errorQuda("Unrecognised precision\n");
+      exit(1);
+    }
   }
+
 
   if(quda_precision==1){
    host_precision  = device_precision =  QUDA_SINGLE_PRECISION;
-   device_precision_sloppy = QUDA_SINGLE_PRECISION;
+   device_precision_sloppy = (use_mixed_precision) ? QUDA_HALF_PRECISION : QUDA_SINGLE_PRECISION;
   }else if(quda_precision==2){
     host_precision = device_precision =  QUDA_DOUBLE_PRECISION;
     if(inv_args.mixed_precision == 0){
@@ -454,7 +419,8 @@ void qudaMultishiftInvert(int external_precision,
   setGaugeParams(local_dim, host_precision, device_precision, device_precision_sloppy, &gaugeParam);
   
   QudaInvertParam invertParam = newQudaInvertParam();
-  const bool isVerbose = true;
+  invertParam.residual_type = (target_fermilab_residual != 0) ? QUDA_HEAVY_QUARK_RESIDUAL : QUDA_L2_RELATIVE_RESIDUAL;
+
   const double ignore_mass = 1.0;
 #ifdef MULTI_GPU
   int logical_coord[4];
@@ -473,12 +439,26 @@ void qudaMultishiftInvert(int external_precision,
     local_parity = inv_args.evenodd;
   }
 
-  setInvertParams(local_dim, host_precision, device_precision, device_precision_sloppy,
-      ignore_mass, target_residual, inv_args.max_iter, inv_args.restart_tolerance, local_parity, isVerbose, &invertParam);
+  {
+    double* target_residual_offset = new double[num_offsets];
+    double* target_hq_residual_offset = new double[num_offsets];
+    for(int i=0; i<num_offsets; ++i){
+		  target_residual_offset[i] = target_residual; 
+      target_hq_residual_offset[i] = target_fermilab_residual;
+    }
+
+    const double reliable_delta = 1e-1;
+
+    setInvertParams(local_dim, host_precision, device_precision, device_precision_sloppy,
+      num_offsets, offset, target_residual_offset, target_hq_residual_offset, 
+	    inv_args.max_iter, reliable_delta, local_parity, verbosity, &invertParam);
+
+    delete[] target_residual_offset;
+    delete[] target_hq_residual_offset;
+  }  
 
   ColorSpinorParam csParam;
   setColorSpinorParams(local_dim, host_precision, &csParam);
-
 
   void* fatlink[4];
   void* longlink[4];
@@ -513,9 +493,6 @@ void qudaMultishiftInvert(int external_precision,
       }
     }
      
-
-
-
     color_vec_offset = getColorVectorOffset(local_parity, even_odd_exchange, volume);
 
     void* src_pointer;
@@ -524,7 +501,6 @@ void qudaMultishiftInvert(int external_precision,
     }else{
       src_pointer = (double*)source + color_vec_offset;
     }
-
 
 
     loadColorVector(milc_precision, gaugeParam, &(src_pointer), &localSource);
@@ -543,13 +519,6 @@ void qudaMultishiftInvert(int external_precision,
   const int fat_pad  = getFatLinkPadding(local_dim);
   const int long_pad = 3*fat_pad;
 
-  if(use_mixed_precision)
-  {
-    record_gauge(gaugeParam.X, fatlink, fat_pad,
-     			  longlink, long_pad,
-        QUDA_RECONSTRUCT_NO, QUDA_RECONSTRUCT_NO,
-        &gaugeParam);
-  }else{
 #ifdef MULTI_GPU
     gaugeParam.type = QUDA_GENERAL_LINKS;
     gaugeParam.ga_pad = fat_pad;  // don't know if this is correct
@@ -567,32 +536,10 @@ void qudaMultishiftInvert(int external_precision,
     gaugeParam.type = QUDA_THREE_LINKS;
     loadGaugeQuda(longlink, &gaugeParam);
 #endif
-  }
 
   timer.check("Setup and data load");
-
-  double* residue_sq = new double[num_offsets];
-  for(int i=0; i<num_offsets; ++i) residue_sq[i] = invertParam.tol*invertParam.tol;
-
-
- 
-
-  if(use_mixed_precision){
-    invertMultiShiftQudaMixed(localSolutionArray, localSource, &invertParam, offset, num_offsets, residue_sq);
-    printfQuda("QudaInverParam.gflops = %lf\n", invertParam.gflops);
-    printfQuda("QudaInvertParam.secs = %lf\n", invertParam.secs);
-    printfQuda("invertMultiShiftQudaMixed GFLOPS = %lf\n", invertParam.gflops/invertParam.secs);
-    timer.check("invertMultiShiftQudaMixed");
-  }else{
-    invertMultiShiftQuda(localSolutionArray, localSource, &invertParam, offset, num_offsets, residue_sq);
-    printfQuda("QudaInverParam.gflops = %lf\n", invertParam.gflops);
-    printfQuda("QudaInvertParam.secs = %lf\n", invertParam.secs);
-    printfQuda("invertMultiShiftQuda GFLOPS = %lf\n", invertParam.gflops/invertParam.secs);
-    timer.check("invertMultiShiftQuda");
-  }
-
-
-  delete[] residue_sq;
+  invertMultiShiftQuda(localSolutionArray, localSource, &invertParam);
+  timer.check("invertMultiShiftQuda");
 
   timer.check();
   { // additional layer of scope
@@ -651,20 +598,8 @@ void qudaMultishiftInvert(int external_precision,
     cpuColorSpinorField hOut(cpuParam);
     hOut = cudaOutField;
 
-    final_residual[i] = computeRegularResidual(*sourceColorField, *diffColorField, invertParam.cpu_prec);    
-
-
-    if(invertParam.cpu_prec == QUDA_DOUBLE_PRECISION){
-      final_fermilab_residual[i] = computeFermilabResidual<double>(*solutionColorField, *diffColorField);    
-    }else{
-      final_fermilab_residual[i] = computeFermilabResidual<float>(*solutionColorField, *diffColorField);    
-    }
-
-    if(isVerbose){
-      printfQuda("target residual = %g\n", invertParam.tol);
-      printfQuda("residual = %g\n", final_residual[i]);
-      printfQuda("fermilab residual = %g\n", final_fermilab_residual[i]);
-    }
+    final_residual[i] = invertParam.true_res_offset[i];
+    final_fermilab_residual[i] = invertParam.true_res_hq_offset[i];
  
     delete solutionColorField;
     delete diffColorField;
@@ -697,10 +632,10 @@ void qudaMultishiftInvert(int external_precision,
 
 void qudaInvert(int external_precision,
                 int quda_precision,
-		double mass,
-		QudaInvertArgs_t inv_args,
+								double mass,
+								QudaInvertArgs_t inv_args,
                 double target_residual, 
-	        double target_fermilab_residual,
+	        			double target_fermilab_residual,
                 const void* const milc_fatlink,
                 const void* const milc_longlink,
                 void* source,
@@ -710,12 +645,19 @@ void qudaInvert(int external_precision,
                 int* num_iters)
 {
 
-  if(target_fermilab_residual != 0){
-    errorQuda("qudaInvert: requested relative residual must be zero\n");
+  using namespace milc_interface;
+
+
+  if(target_fermilab_residual !=0 && target_residual != 0){
+    errorQuda("qudaInvert: conflicting residuals requested\n");
+    exit(1);
+  }else if(target_fermilab_residual == 0 && target_residual == 0){
+	  errorQuda("qudaInvert: requesting zero residual\n");
+    exit(1);
   }
+  
 
-
-  Timer timer("qudaInvert");
+  milc_interface::Timer timer("qudaInvert");
 #ifndef TIME_INTERFACE
   timer.mute();
 #endif
@@ -727,15 +669,23 @@ void qudaInvert(int external_precision,
   setDimConstants(const_cast<int*>(local_dim));
 
   const bool use_mixed_precision = ((quda_precision==2) && inv_args.mixed_precision) ? true : false;
-  if(use_mixed_precision){
-    printfQuda("Using mixed double-precision CG inverter\n");
-  }else if(quda_precision == 2){
-    printfQuda("Using double-precision CG inverter\n");
-  }else if(quda_precision == 1){
-    printfQuda("Using single-precision CG inverter\n");
-  }else{
-    errorQuda("Unrecognised precision\n");
-    exit(1);
+  PersistentData pd;
+  static const QudaVerbosity verbosity = pd.getVerbosity();
+  if(verbosity >= QUDA_VERBOSE){
+    if(use_mixed_precision){
+      if(quda_precision == 2){
+        printfQuda("Using mixed double-precision CG inverter\n");
+      }else if(quda_precision == 2){
+        printfQuda("Using mixed single-precision CG inverter\n");
+      }
+    }else if(quda_precision == 2){
+      printfQuda("Using double-precision CG inverter\n");
+    }else if(quda_precision == 1){
+      printfQuda("Using single-precision CG inverter\n");
+    }else{
+      errorQuda("Unrecognised precision\n");
+      exit(1);
+    }
   }
 
 
@@ -765,7 +715,7 @@ void qudaInvert(int external_precision,
   setGaugeParams(local_dim, host_precision, device_precision, device_precision_sloppy, &gaugeParam);
   
   QudaInvertParam invertParam = newQudaInvertParam();
-  const bool isVerbose = true;
+  invertParam.residual_type = (target_residual != 0) ? QUDA_L2_RELATIVE_RESIDUAL : QUDA_HEAVY_QUARK_RESIDUAL;
   QudaParity local_parity;
 
 #ifdef MULTI_GPU 
@@ -782,8 +732,10 @@ void qudaInvert(int external_precision,
     local_parity = inv_args.evenodd;
   }
 
+  double& target_res = (invertParam.residual_type == QUDA_L2_RELATIVE_RESIDUAL) ? target_residual : target_fermilab_residual;
+
   setInvertParams(local_dim, host_precision, device_precision, device_precision_sloppy,
-      mass, target_residual, inv_args.max_iter, inv_args.restart_tolerance, local_parity, isVerbose, &invertParam);
+      mass, target_res, inv_args.max_iter, 1e-1, local_parity, verbosity, &invertParam);
 
 
   ColorSpinorParam csParam;
@@ -866,12 +818,9 @@ void qudaInvert(int external_precision,
     gaugeParam.type = QUDA_THREE_LINKS;
     loadGaugeQuda(longlink, &gaugeParam);
 #endif
-
    timer.check("Set up and data load");
 
    invertQuda(localSolution, localSource, &invertParam); 
-   printfQuda("invertQuda GFLOPS = %lf\n", invertParam.gflops/invertParam.secs);
-   
    timer.check("invertQuda");
 
 
@@ -926,26 +875,8 @@ void qudaInvert(int external_precision,
   hOut = cudaOutField;
 
 
-  // Compute the residuals
-  // This should all be done on the device
-  *final_residual = computeRegularResidual(*sourceColorField, *diffColorField, invertParam.cpu_prec);    
-
-  if(isVerbose){
-    printfQuda("target residual = %g\n", invertParam.tol);
-    printfQuda("final residual = %g\n", *final_residual);
-  }
-
-  if(invertParam.cpu_prec == QUDA_DOUBLE_PRECISION){
-    *final_fermilab_residual = computeFermilabResidual<double>(*solutionColorField, *diffColorField);    
-  }else{
-    *final_fermilab_residual = computeFermilabResidual<float>(*solutionColorField, *diffColorField);    
-  }
-
-  if(isVerbose){
-    printfQuda("final relative residual = %g\n", *final_fermilab_residual);
-  }
-
-  timer.check("Computed residuals");
+  *final_residual = invertParam.true_res;
+  *final_fermilab_residual = invertParam.true_res_hq;
 
   delete sourceColorField;
   delete diffColorField;

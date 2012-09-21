@@ -4,13 +4,12 @@
 
 #include <quda.h>        // contains initQuda
 #include <dslash_quda.h> // contains initDslashConstants
-#include <hisq_force_utils.h>
 #include <fat_force_quda.h>
 #include <hisq_force_quda.h>
 #include <gauge_field.h>
-#include "include/utilities.h"
+#include "include/milc_utilities.h"
 #include "external_headers/quda_milc_interface.h"
-#include "include/timer.h"
+#include "include/milc_timer.h"
 
 //******************************************************************//
 //
@@ -76,6 +75,8 @@ QudaGaugeParam forceParam_ex;
 } // anonymous namespace
 
 GaugeFieldParam param_ex;
+
+namespace milc_interface {
 
 template<class Real>
 static void 
@@ -446,7 +447,7 @@ void refreshExtendedQDPGaugeField(int dim[4],
 
 
 
-
+} // namespace milc_interface
 
 
 
@@ -465,7 +466,6 @@ void qudaComputeOuterProduct(int precision,
 			     void* const one_link_src[4], 
 			     void* const three_link_src[4])
 {
-  printfQuda("Calling qudaComputeOuterProduct\n");
 
   Layout layout;  
   QudaPrecision local_precision = (precision == 1) ? QUDA_SINGLE_PRECISION : QUDA_DOUBLE_PRECISION;
@@ -543,15 +543,17 @@ qudaHisqForce(
 	      const void* const staple_src[4], 
 	      const void* const one_link_src[4],  
 	      const void* const naik_src[4], 
-              const void* const w_link,
+        const void* const w_link,
 	      const void* const v_link, 
-              const void* const u_link,
+        const void* const u_link,
 	      void* const milc_momentum)
 {
-  printfQuda("Calling qudaHisqForce\n"); 
+
+  using namespace milc_interface; 
+
   using namespace quda::fermion_force;
 
-  Timer timer("qudaHisqForce");
+  milc_interface::Timer timer("qudaHisqForce");
 #ifndef TIME_INTERFACE
   timer.mute();
 #endif
@@ -629,7 +631,6 @@ qudaHisqForce(
 
   // Load naik outer product
   extendQDPGaugeField(gaugeParam.X, local_precision, naik_src, (void**)cpuInForce_ex->Gauge_p());
-  printfQuda("extendQDPGaugeField call complete\n");
   exchange_cpu_sitelink_ex(gaugeParam.X, R, (void**)cpuInForce_ex->Gauge_p(), cpuInForce_ex->Order(), local_precision, 0); 
   loadLinkToGPU_ex(cudaInForce_ex, cpuInForce_ex);
   timer.check("Load naik_src");
@@ -733,12 +734,14 @@ qudaHisqForce(
 	      const void* const staple_src[4], 
 	      const void* const one_link_src[4],  
 	      const void* const naik_src[4], 
-              const void* const w_link,
+        const void* const w_link,
 	      const void* const v_link, 
-              const void* const u_link,
+        const void* const u_link,
 	      void* const milc_momentum)
 {
-  printfQuda("Calling qudaHisqForce\n");
+
+  using namespace milc_interface;
+
   using namespace quda::fermion_force;
 
   double act_path_coeff[6];

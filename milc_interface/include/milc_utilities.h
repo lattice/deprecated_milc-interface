@@ -5,26 +5,58 @@
 #include <cstdlib>
 #include <cassert>
 
+#include <enum_quda.h>
+#include <quda.h>
+#include <util_quda.h> // for printfQuda
 // General layout
 // stores the local lattice dimensions 
 // and the MPI grid dimensions
+
+namespace milc_interface {
+
+// This class is a bit of a holdall for 
+// persistent data in the interface. 
+// At the moment, it just contains the verbosity
+class PersistentData
+{
+  private:
+    static QudaVerbosity verbosity;
+  public:
+    void setVerbosity(QudaVerbosity verb){ verbosity = verb; }
+    QudaVerbosity  getVerbosity() const { return verbosity; }	
+};
+
+
 class Layout
 {
+
+  typedef int array4[4];
+
   public:
     void setLocalDim(const int X[4]);
     void setGridDim(const int X[4]);
 
-
-    const int (&getLocalDim() const)[4]
+    const array4 &getLocalDim() const
     {
       return local_dim;
     }
 
+    const array4 &getGridDim() const
+    {
+      return grid_dim;
+    }
+
+/*
+    const int (&getLocalDim() const)[4]
+    {
+      return local_dim;
+    }
     const int (&getGridDim() const)[4]
     {
       return grid_dim;
     }
 
+*/
   private:
     static int local_dim[4];
     static int grid_dim[4];
@@ -56,10 +88,8 @@ class GridInfo
 
 int getVolume(const int dim[4]);
 
-#include <enum_quda.h>
 int getRealSize(QudaPrecision precision);
 
-#include <quda.h>
 class  MilcFieldLoader
 {
   const QudaPrecision milc_precision;
@@ -79,11 +109,10 @@ void allocateColorField(int volume, QudaPrecision prec, bool usePinnedMemory, vo
 
 void assignExtendedQDPGaugeField(const int dim[4], QudaPrecision precision, const void* const src, void** const dst);
 
-
 void updateExtendedQDPBorders(const int dim[4], QudaPrecision precision, void** const qdp_field);
 
+} // namespace milc_interface
 
-#include <util_quda.h> // for printfQuda
 
 
 #endif // _QUDA_MILC_UTILITIES_H

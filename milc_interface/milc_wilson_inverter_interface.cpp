@@ -20,7 +20,7 @@
 
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
-#include "include/utilities.h"
+#include "include/milc_utilities.h"
 
 extern int V;
 extern int Vh;
@@ -29,6 +29,11 @@ extern int Vs_t;
 extern int Vsh_t;
 extern int faceVolume[4]; 
 extern int Z[4];
+
+using namespace quda;
+
+
+namespace milc_interface {
 
 static void setDims(int *X){
   V = 1;
@@ -130,7 +135,7 @@ double computeFermilabResidual(cpuColorSpinorField & solutionColorField,  cpuCol
        num_normsq       += num_element*num_element;
        denom_normsq     += denom_element*denom_element;
      }   
-     residual += (num_normsq/denom_normsq);  
+     residual += (denom_normsq==0) ? 1 : (num_normsq/denom_normsq);  
    } // end loop over volume
  
   size_t total_volume = volume;
@@ -168,6 +173,7 @@ setColorSpinorParams(const int dim[4],
 }
 
 
+} // namespace milc_interface
 
 
 void qudaCloverInvert(int external_precision, 
@@ -185,10 +191,21 @@ void qudaCloverInvert(int external_precision,
 		      double* const final_fermilab_residual,
 		      int* num_iters)
 {
-  if(target_fermilab_residual != 0){
-    errorQuda("qudaCloverInvert: requested relative residual must be zero\n");
+  using namespace milc_interface;
+
+  if(target_fermilab_residual !=0 && target_residual != 0){
+    errorQuda("qudaCloverInvert: conflicting residuals requested\n");
+    exit(1);
+  }else if(target_fermilab_residual == 0 && target_residual == 0){
+    errorQuda("qudaCloverInvert: requesting zero residual\n");
     exit(1);
   }
+
+  
+  PersistentData pd;
+  static const QudaVerbosity verbosity = pd.getVerbosity();
+
+
 
   Layout layout;
   const int* local_dim = layout.getLocalDim();
@@ -216,6 +233,9 @@ void qudaCloverInvert(int external_precision,
 
   QudaGaugeParam gaugeParam   = newQudaGaugeParam();
   QudaInvertParam invertParam = newQudaInvertParam();
+  invertParam.residual_type = (target_residual != 0) ? QUDA_L2_RELATIVE_RESIDUAL : QUDA_HEAVY_QUARK_RESIDUAL;
+  invertParam.tol = (target_residual != 0) ? target_residual : target_fermilab_residual;
+
   for(int dir=0; dir<4; ++dir) gaugeParam.X[dir] = Z[dir];
 
   gaugeParam.anisotropy               = 1.0;
@@ -246,7 +266,7 @@ void qudaCloverInvert(int external_precision,
   gaugeParam.cuda_prec_sloppy         = device_precision_sloppy;
   gaugeParam.cuda_prec_precondition   = device_precision_sloppy;
   gaugeParam.gauge_fix                = QUDA_GAUGE_FIXED_NO;
-  gaugeParam.ga_pad 		      = 0;
+  gaugeParam.ga_pad 		              = 0;
 
   invertParam.dslash_type             = QUDA_CLOVER_WILSON_DSLASH;
   invertParam.kappa                   = kappa;
@@ -260,10 +280,9 @@ void qudaCloverInvert(int external_precision,
 
   invertParam.dagger             = QUDA_DAG_NO;
   invertParam.mass_normalization = QUDA_KAPPA_NORMALIZATION;
-  invertParam.gcrNkrylov	 = 30; // unnecessary
-  invertParam.reliable_delta     = inv_args.restart_tolerance; 
+  invertParam.gcrNkrylov	 			 = 30; // unnecessary
+  invertParam.reliable_delta     = 1e-1; 
   invertParam.maxiter            = inv_args.max_iter;
-  invertParam.tol		 = target_residual;
 
 #ifdef MULTI_GPU
   int x_face_size = gaugeParam.X[1]*gaugeParam.X[2]*gaugeParam.X[3]/2;
@@ -293,7 +312,7 @@ void qudaCloverInvert(int external_precision,
     invertParam.clover_cuda_prec_precondition = device_precision_sloppy;
     invertParam.clover_order		      = QUDA_PACKED_CLOVER_ORDER;
   }
-  invertParam.verbosity			   = QUDA_VERBOSE;
+  invertParam.verbosity			   = verbosity;
 
   
   const size_t cSize = getRealSize(invertParam.clover_cpu_prec);
@@ -333,7 +352,7 @@ void qudaCloverInvert(int external_precision,
   } // end data fetch
 
   loadGaugeQuda((void*)gauge, &gaugeParam);
-
+  if(invertParam.dslash_type == QUDA_CLOVER_WILSON_DSLASH) loadCloverQuda(localClover, localCloverInverse, &invertParam);
   invertQuda(localSolution, localSource, &invertParam); 
   *num_iters = invertParam.iter;
 
@@ -370,9 +389,15 @@ void qudaCloverInvert(int external_precision,
     cpuColorSpinorField hOut(cpuParam);
     hOut = cudaOutField;
 
+
+    *final_residual = invertParam.true_res;
+    *final_fermilab_residual = invertParam.true_res_hq;
+    printf("final residual = %g\n", *final_residual);
+    if(verbosity >= QUDA_VERBOSE) printf("final relative residual = %g\n", *final_fermilab_residual);
+
+    // Remove this!
     *final_residual = computeRegularResidual(*sourceColorField, *diffColorField, invertParam.cpu_prec);    
-    bool isVerbose = false;
-    if(isVerbose){
+    if(verbosity >= QUDA_VERBOSE){
       printf("target residual = %g\n", invertParam.tol);
       printf("final residual = %g\n", *final_residual);
     }
@@ -382,7 +407,7 @@ void qudaCloverInvert(int external_precision,
     }else{
       *final_fermilab_residual = computeFermilabResidual<float>(*solutionColorField, *diffColorField);    
     }
-    if(isVerbose) printf("final relative residual = %g\n", *final_fermilab_residual);
+    if(verbosity >= QUDA_VERBOSE) printf("final relative residual = %g\n", *final_fermilab_residual);
 
     delete sourceColorField;
     delete diffColorField;

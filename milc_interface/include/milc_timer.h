@@ -7,6 +7,8 @@
 #include <time.h>
 
 
+namespace milc_interface {
+
 class Timer{
 
   public:
@@ -25,6 +27,8 @@ class Timer{
     bool _mute;
 
 };
+
+} // namespace milc_interface
 
 
 #endif  // _TIMER_H_

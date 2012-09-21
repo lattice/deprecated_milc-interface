@@ -1,4 +1,4 @@
-#include "include/utilities.h"
+#include "include/milc_utilities.h"
 #include <quda.h>
 #include <cstdio>
 #include <iostream>
@@ -9,11 +9,29 @@
 #include <comm_quda.h>
 #endif
 
-void qudaInit(QudaLayout_t input)
+void qudaInit(QudaInitArgs_t input)
 {
-  static bool initialized = false;
+  using namespace milc_interface;
 
+  static bool initialized = false;
   if(initialized) return;
+
+  // set verbosity here
+  setVerbosityQuda(input.verbosity, "", stdout);
+  PersistentData persistent_data;
+  persistent_data.setVerbosity(input.verbosity);
+
+  qudaSetLayout(input.layout);
+
+  initialized = true;
+	return;
+}
+
+
+
+void qudaSetLayout(QudaLayout_t input)
+{
+  using namespace milc_interface;
 
   int local_dim[4];
   for(int dir=0; dir<4; ++dir){ local_dim[dir] = input.latsize[dir]; }
@@ -32,17 +50,16 @@ void qudaInit(QudaLayout_t input)
 #ifdef MULTI_GPU
   layout.setGridDim(input.machsize);
   const int* grid_size = layout.getGridDim();
-  printfQuda("Gridsize = %d %d %d %d\n", grid_size[0], grid_size[1], grid_size[2], grid_size[3]);
 
   comm_set_gridsize(grid_size[0], grid_size[1], grid_size[2], grid_size[3]);
   comm_init();
 #endif
 
 
-  initialized = true;
 #ifdef MULTI_GPU
   static int device = -1;
 #else
+  //static int device = input.device;
   static int device = 0;
 #endif
   initQuda(device);
@@ -59,7 +76,6 @@ void qudaFinalize()
 
 // initialization routines for hisq
 #include <dslash_quda.h> 
-#include <hisq_force_utils.h>
 #include <fat_force_quda.h>
 #include <hisq_force_quda.h>
 #include <gauge_field.h>

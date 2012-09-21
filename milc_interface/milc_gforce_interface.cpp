@@ -22,12 +22,15 @@
 // 24 from the "chair" loops.
 // 
 
-#include "include/timer.h"
-#include "include/utilities.h"
+#include "include/milc_timer.h"
+#include "include/milc_utilities.h"
 
 extern int V;
 extern int Vh;
 extern int Z[4];
+
+
+namespace milc_interface {
 
 void
 print_su3_matrix(void *_a, int prec)
@@ -128,18 +131,18 @@ setGaugeParams(QudaGaugeParam* gaugeParam,
   return;
 }
 
+} // namespace milc_interface
 
-
-void qudaGaugeForce(
-                    int precision,
-                    int num_loop_types,
-                    double milc_loop_coeff[3],
-                    double eb3,
-                    void* milc_sitelink,
-                    void* milc_momentum
+void qudaGaugeForce( int precision,
+                     int num_loop_types,
+                     double milc_loop_coeff[3],
+                     double eb3,
+                     void* milc_sitelink,
+                     void* milc_momentum
                    )
 {
-  printfQuda("Calling qudaGaugeForce\n");
+  using namespace milc_interface;
+
   Timer timer("qudaGaugeForce");
 #ifndef TIME_INTERFACE
   timer.mute();
