@@ -345,9 +345,9 @@ void qudaMultishiftInvert(int external_precision,
                       int quda_precision,
                       int num_offsets,
                       double* const offset,
-		      						QudaInvertArgs_t inv_args,
-                      double target_residual, 
-		      						double target_fermilab_residual,
+		      QudaInvertArgs_t inv_args,
+                      const double target_residual[], 
+		      const double target_fermilab_residual[i],
                       const void* const milc_fatlink,
                       const void* const milc_longlink,
                       void* source,
@@ -360,11 +360,12 @@ void qudaMultishiftInvert(int external_precision,
   using namespace milc_interface;
 
 
-  if(target_residual == 0){
-    errorQuda("qudaMultishiftInvert: target residual cannot be zero\n");
-    exit(1);
+  for(int i=0; i<num_offsets; ++i){
+    if(target_residual[i] == 0){
+      errorQuda("qudaMultishiftInvert: target residual cannot be zero\n");
+      exit(1);
+    }
   }
-  
 
   milc_interface::Timer timer("qudaMultishiftInvert"); 
 #ifndef TIME_INTERFACE
@@ -419,7 +420,7 @@ void qudaMultishiftInvert(int external_precision,
   setGaugeParams(local_dim, host_precision, device_precision, device_precision_sloppy, &gaugeParam);
   
   QudaInvertParam invertParam = newQudaInvertParam();
-  invertParam.residual_type = (target_fermilab_residual != 0) ? QUDA_HEAVY_QUARK_RESIDUAL : QUDA_L2_RELATIVE_RESIDUAL;
+  invertParam.residual_type = (target_fermilab_residual[0] != 0) ? QUDA_HEAVY_QUARK_RESIDUAL : QUDA_L2_RELATIVE_RESIDUAL;
 
   const double ignore_mass = 1.0;
 #ifdef MULTI_GPU
@@ -440,21 +441,12 @@ void qudaMultishiftInvert(int external_precision,
   }
 
   {
-    double* target_residual_offset = new double[num_offsets];
-    double* target_hq_residual_offset = new double[num_offsets];
-    for(int i=0; i<num_offsets; ++i){
-		  target_residual_offset[i] = target_residual; 
-      target_hq_residual_offset[i] = target_fermilab_residual;
-    }
-
     const double reliable_delta = 1e-1;
 
     setInvertParams(local_dim, host_precision, device_precision, device_precision_sloppy,
-      num_offsets, offset, target_residual_offset, target_hq_residual_offset, 
+      num_offsets, offset, target_residual, target_hq_residual, 
 	    inv_args.max_iter, reliable_delta, local_parity, verbosity, &invertParam);
 
-    delete[] target_residual_offset;
-    delete[] target_hq_residual_offset;
   }  
 
   ColorSpinorParam csParam;

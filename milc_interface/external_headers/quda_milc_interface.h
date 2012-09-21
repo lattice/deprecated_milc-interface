@@ -22,10 +22,10 @@ extern "C" {
 	} QudaLayout_t; 
 
 
-  typedef struct {
-	  QudaVerbosity verbosity;
-	  QudaLayout_t layout;
-  } QudaInitArgs_t; // passed to the initialization struct
+        typedef struct {
+	      QudaVerbosity verbosity;
+	      QudaLayout_t layout;
+        } QudaInitArgs_t; // passed to the initialization struct
 
 
 	typedef struct {
@@ -80,8 +80,8 @@ extern "C" {
 			int num_offsets,
 			double* const offset,
 			QudaInvertArgs_t inv_args,
-			double target_residual,
-			double target_relative_residual,
+			const double* target_residual,
+			const double* target_relative_residual,
 			const void* const milc_fatlink,
 			const void* const milc_longlink,
 			void* source,
