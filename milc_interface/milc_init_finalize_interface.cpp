@@ -59,8 +59,7 @@ void qudaSetLayout(QudaLayout_t input)
 #ifdef MULTI_GPU
   static int device = -1;
 #else
-  //static int device = input.device;
-  static int device = 0;
+  static int device = input.device;
 #endif
   initQuda(device);
   return;
