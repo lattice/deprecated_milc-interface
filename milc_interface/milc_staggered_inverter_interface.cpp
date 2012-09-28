@@ -345,9 +345,9 @@ void qudaMultishiftInvert(int external_precision,
                       int quda_precision,
                       int num_offsets,
                       double* const offset,
-		      QudaInvertArgs_t inv_args,
+		      						QudaInvertArgs_t inv_args,
                       const double target_residual[], 
-		      const double target_fermilab_residual[i],
+		      						const double target_fermilab_residual[],
                       const void* const milc_fatlink,
                       const void* const milc_longlink,
                       void* source,
@@ -444,7 +444,7 @@ void qudaMultishiftInvert(int external_precision,
     const double reliable_delta = 1e-1;
 
     setInvertParams(local_dim, host_precision, device_precision, device_precision_sloppy,
-      num_offsets, offset, target_residual, target_hq_residual, 
+      num_offsets, offset, target_residual, target_fermilab_residual, 
 	    inv_args.max_iter, reliable_delta, local_parity, verbosity, &invertParam);
 
   }  
