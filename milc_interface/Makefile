@@ -1,7 +1,6 @@
 include ../make.inc
 
 QUDA = ../lib/libquda.a 
-QUDA_MILC = libquda_milc.a
 
 
 INC += -I../include -I../tests -I. -I$(CUDA_INSTALL_PATH)/include
@@ -41,18 +40,13 @@ ifeq ($(strip $(BUILD_GAUGE_FORCE)), yes)
 endif
 
 
-all: $(QUDA_MILC)
+
+all: ${QUDA} ../make.inc ${TEST_OBJS} ${INTERFACE_OBJS}
+	ar rcs ${QUDA} ${TEST_OBJS} ${INTERFACE_OBJS}
+	cp ${EXTERNAL_HDR} ../include/
 
 clean:
 	-rm -f *.o
-
-
-$(QUDA_MILC) : ${QUDA} ../make.inc ${TEST_OBJS} ${INTERFACE_OBJS}
-	cp ${QUDA} ${QUDA_MILC}
-	ar rcs ${QUDA_MILC} ${TEST_OBJS} ${INTERFACE_OBJS}
-	mv ${QUDA_MILC} ${QUDA}
-	cp ${EXTERNAL_HDR} ../include/
-
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) ${INC} $< -c -o $@

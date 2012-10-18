@@ -22,10 +22,10 @@ extern "C" {
 	} QudaLayout_t; 
 
 
-        typedef struct {
-	      QudaVerbosity verbosity;
-	      QudaLayout_t layout;
-        } QudaInitArgs_t; // passed to the initialization struct
+  typedef struct {
+	  QudaVerbosity verbosity;
+	  QudaLayout_t layout;
+  } QudaInitArgs_t; // passed to the initialization struct
 
 
 	typedef struct {
