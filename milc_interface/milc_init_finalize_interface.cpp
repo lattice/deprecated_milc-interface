@@ -51,7 +51,7 @@ void qudaSetLayout(QudaLayout_t input)
   layout.setGridDim(input.machsize);
   const int* grid_size = layout.getGridDim();
 
-  comm_set_gridsize(grid_size[0], grid_size[1], grid_size[2], grid_size[3]);
+  comm_set_gridsize(grid_size,4);
   comm_init();
 #endif
 
