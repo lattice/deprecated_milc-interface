@@ -556,49 +556,12 @@ void qudaMultishiftInvert(int external_precision,
   double* mass = new double[num_offsets];
   for(int i=0; i<num_offsets; ++i) mass[i] = sqrt(offset[i])/2.0;
 
-  csParam.create = QUDA_REFERENCE_FIELD_CREATE;
-  csParam.v = localSource;
-  cpuColorSpinorField* sourceColorField = new cpuColorSpinorField(csParam); 
- 
-
   for(int i=0; i<num_offsets; ++i){
-    // Loop over the number of offsets and compute the fermilab "relative" residual
-    csParam.create = QUDA_ZERO_FIELD_CREATE;
-    cpuColorSpinorField* diffColorField = new cpuColorSpinorField(csParam);
-
-    csParam.create = QUDA_REFERENCE_FIELD_CREATE;
-    csParam.v = localSolutionArray[i];
-    cpuColorSpinorField* solutionColorField = new cpuColorSpinorField(csParam);
-
-    // compute the residuals
-    invertParam.mass = mass[i];
-    ColorSpinorParam cpuParam(solutionColorField->V(), QUDA_CPU_FIELD_LOCATION, invertParam, local_dim, true);
-    ColorSpinorParam cudaParam(cpuParam, invertParam);
-    cudaParam.siteSubset = csParam.siteSubset;
-    cudaColorSpinorField cudaSolutionField(*solutionColorField, cudaParam);
-    cudaColorSpinorField cudaSourceField(*sourceColorField, cudaParam);
-    cudaParam.create = QUDA_NULL_FIELD_CREATE;
-    cudaColorSpinorField cudaOutField(cudaSolutionField, cudaParam);
-    DiracParam diracParam;
-    setDiracParam(diracParam, &invertParam, true);
-    Dirac *dirac = Dirac::create(diracParam);
-    dirac->MdagM(cudaOutField, cudaSolutionField);
-    delete dirac;
-
-    mxpyCuda(cudaSourceField, cudaOutField);
-    cpuParam.v = diffColorField->V();
-    cpuColorSpinorField hOut(cpuParam);
-    hOut = cudaOutField;
-
     final_residual[i] = invertParam.true_res_offset[i];
     final_fermilab_residual[i] = invertParam.true_res_hq_offset[i];
  
-    delete solutionColorField;
-    delete diffColorField;
-
   } // end loop over number of offsets
   timer.check("Computed residuals"); 
-  delete sourceColorField;
   // cleanup
   delete[] mass;
 
