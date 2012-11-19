@@ -53,100 +53,6 @@ static void setDims(int *X){
 }
 
 
-void loadRawField(int size, // number of real numbers 
-		  QudaPrecision src_precision,
-		  void **src_ptr,
-		  QudaPrecision dst_precision, 
-		  void **dst_ptr)
-{
-  if(src_precision == dst_precision){
-    *dst_ptr = *src_ptr;
-  }else{
-    if(src_precision == QUDA_DOUBLE_PRECISION && dst_precision == QUDA_SINGLE_PRECISION)
-    {
-      for(int i=0; i<size; ++i){
-        ((float*)(*dst_ptr))[i] = ((double*)(*src_ptr))[i];
-      }
-    }else if(src_precision == QUDA_SINGLE_PRECISION && dst_precision == QUDA_DOUBLE_PRECISION)
-    {
-      for(int i=0; i<size; ++i){
-	((double*)(*dst_ptr))[i] = ((float*)(*src_ptr))[i];
-      }
-    }
-  }
-  return;
-} // loadRawField
-
-
-void loadRawField(int size, // number of real numbers 
-		  QudaPrecision src_precision,
-		  void **src_ptr,
-		  QudaPrecision dst_precision, 
-		  void **dst_ptr, 
-		  double coeff)
-{
-
-  if(src_precision == QUDA_DOUBLE_PRECISION && dst_precision == QUDA_SINGLE_PRECISION)
-  {
-    for(int i=0; i<size; ++i){
-      ((float*)(*dst_ptr))[i] = coeff*((double*)(*src_ptr))[i];
-    }
-    }else if(src_precision == QUDA_SINGLE_PRECISION && dst_precision == QUDA_DOUBLE_PRECISION)
-  {
-      for(int i=0; i<size; ++i){
-	((double*)(*dst_ptr))[i] = coeff*((float*)(*src_ptr))[i];
-      }
-  }
-  return;
-} // loadRawField
-
-
-
-
-
-
-
-// Code for computing residuals...
-// There are a number of similar routines for the staggered inverter.
-// Code needs to be refactored.
-static
-double computeRegularResidual(cpuColorSpinorField & sourceColorField, cpuColorSpinorField & diffColorField, QudaPrecision & host_precision)
-{
-  double numerator   = norm_2(diffColorField.V(), (diffColorField.Volume())*24, host_precision);
-  double denominator = norm_2(sourceColorField.V(), (diffColorField.Volume())*24, host_precision);
-
-  return sqrt(numerator/denominator);
-} 
-
-
-template<class Real>
-static 
-double computeFermilabResidual(cpuColorSpinorField & solutionColorField,  cpuColorSpinorField & diffColorField)
-{
-   double num_element, denom_element;
-   double residual = 0.0;
-   int volume = solutionColorField.Volume();
-   for(int i=0; i<volume; ++i){
-     double num_normsq = 0.0;
-     double denom_normsq = 0.0;
-     for(int j=0; j<24; ++j){
-       num_element      = ((Real*)(diffColorField.V()))[i*24+j];
-       denom_element	= ((Real*)(solutionColorField.V()))[i*24+j]; 
-       num_normsq       += num_element*num_element;
-       denom_normsq     += denom_element*denom_element;
-     }   
-     residual += (denom_normsq==0) ? 1 : (num_normsq/denom_normsq);  
-   } // end loop over volume
- 
-  size_t total_volume = volume;
-#ifdef MPI_COMMS
-  comm_allreduce(&residual);
-  total_volume *= comm_size(); // multiply the local volume by the number of nodes 
-#endif                         // to get the total volume
- 
-   return sqrt(residual/total_volume); 
-}
-
 static void
 setColorSpinorParams(const int dim[4],
                      QudaPrecision precision,
@@ -182,9 +88,9 @@ void qudaCloverInvert(int external_precision,
 		      QudaInvertArgs_t inv_args,
 		      double target_residual,
 		      double target_fermilab_residual,
-		      const void* milc_link,
-		      void* milc_clover, // could be stored in Milc format
-		      void* milc_clover_inv,
+		      const void* link,
+		      void* clover, // could be stored in Milc format
+		      void* cloverInverse,
 		      void* source,
 		      void* solution,
 		      double* const final_residual, 
@@ -200,36 +106,18 @@ void qudaCloverInvert(int external_precision,
     errorQuda("qudaCloverInvert: requesting zero residual\n");
     exit(1);
   }
-
   
   PersistentData pd;
   static const QudaVerbosity verbosity = pd.getVerbosity();
-
-
 
   Layout layout;
   const int* local_dim = layout.getLocalDim();
   setDims(const_cast<int*>(local_dim));
 
-  const QudaPrecision milc_precision = (external_precision == 2) ? QUDA_DOUBLE_PRECISION : QUDA_SINGLE_PRECISION;
+  const QudaPrecision host_precision = (external_precision == 2) ? QUDA_DOUBLE_PRECISION : QUDA_SINGLE_PRECISION;
+  const QudaPrecision device_precision = (quda_precision == 2) ? QUDA_DOUBLE_PRECISION : QUDA_SINGLE_PRECISION;
+  const QudaPrecision device_precision_sloppy = (inv_args.mixed_precision) ? QUDA_SINGLE_PRECISION : device_precision;
 
-  QudaPrecision host_precision, device_precision, device_precision_sloppy;
-  if(quda_precision == 1){
-    host_precision = device_precision = QUDA_SINGLE_PRECISION;
-    device_precision_sloppy = (inv_args.mixed_precision) ? QUDA_HALF_PRECISION : QUDA_SINGLE_PRECISION;
-  }else if(quda_precision == 2){
-    host_precision = device_precision = QUDA_DOUBLE_PRECISION;
-    if(inv_args.mixed_precision == 0){
-      device_precision_sloppy = QUDA_DOUBLE_PRECISION;
-    }else if(inv_args.mixed_precision == 1){
-      device_precision_sloppy = QUDA_SINGLE_PRECISION;
-    }else{
-      device_precision_sloppy = QUDA_HALF_PRECISION;
-    }
-  }else{
-    fprintf(stderr,"Unrecognised precision\n");
-    exit(1);
-  }
 
   QudaGaugeParam gaugeParam   = newQudaGaugeParam();
   QudaInvertParam invertParam = newQudaInvertParam();
@@ -240,7 +128,7 @@ void qudaCloverInvert(int external_precision,
 
   gaugeParam.anisotropy               = 1.0;
   gaugeParam.type                     = QUDA_WILSON_LINKS;
-  gaugeParam.gauge_order              = QUDA_QDP_GAUGE_ORDER; 
+  gaugeParam.gauge_order              = QUDA_MILC_GAUGE_ORDER; 
 
   // Check the boundary conditions
   // Can't have twisted or anti-periodic boundary conditions in the spatial 
@@ -266,7 +154,7 @@ void qudaCloverInvert(int external_precision,
   gaugeParam.cuda_prec_sloppy         = device_precision_sloppy;
   gaugeParam.cuda_prec_precondition   = device_precision_sloppy;
   gaugeParam.gauge_fix                = QUDA_GAUGE_FIXED_NO;
-  gaugeParam.ga_pad 		              = 0;
+  gaugeParam.ga_pad 		      = 0;
 
   invertParam.dslash_type             = QUDA_CLOVER_WILSON_DSLASH;
   invertParam.kappa                   = kappa;
@@ -315,126 +203,22 @@ void qudaCloverInvert(int external_precision,
   invertParam.verbosity			   = verbosity;
 
   
-  const size_t cSize = getRealSize(invertParam.clover_cpu_prec);
-  const size_t cloverSiteSize = 72;
-  const size_t sSize = getRealSize(invertParam.cpu_prec);
-  const size_t spinorSiteSize = 24;
   const size_t gSize = getRealSize(gaugeParam.cpu_prec);
-  void* gauge[4]; 
-  void* localClover; void* localCloverInverse;
-  void* localSource; void* localSolution;
   int volume = 1;
   for(int dir=0; dir<4; ++dir) volume *= gaugeParam.X[dir];
     
-  // fetch data from the MILC code
-  {
-    for(int dir=0; dir<4; ++dir){
-      gauge[dir] = malloc(volume*18*gSize);
-    }
 
-    MilcFieldLoader loader(milc_precision, gaugeParam);
-    loader.loadGaugeField(milc_link, gauge); // copy the link field to "gauge"
-
-    if(milc_precision != gaugeParam.cpu_prec)
-    {
-      localSource           = malloc(volume*spinorSiteSize*sSize);
-      localSolution         = malloc(volume*spinorSiteSize*sSize);
-      localClover           = malloc(volume*cloverSiteSize*cSize);
-      localCloverInverse    = malloc(volume*cloverSiteSize*cSize);
-    }
-    // loadRawField implies that no reordering is necessary
-    // not the definition used in the MILC code, which 
-    // implies the data are in some common (to QOP and MILC) format.
-    loadRawField(volume*spinorSiteSize, milc_precision, &source, gaugeParam.cpu_prec, &localSource);
-    loadRawField(volume*spinorSiteSize, milc_precision, &solution, gaugeParam.cpu_prec, &localSolution);
-    loadRawField(volume*cloverSiteSize, milc_precision, &milc_clover, invertParam.clover_cpu_prec, &localClover);  
-    loadRawField(volume*cloverSiteSize, milc_precision, &milc_clover_inv, invertParam.clover_cpu_prec, &localCloverInverse);  
-  } // end data fetch
-
-  loadGaugeQuda((void*)gauge, &gaugeParam);
-  if(invertParam.dslash_type == QUDA_CLOVER_WILSON_DSLASH) loadCloverQuda(localClover, localCloverInverse, &invertParam);
-  invertQuda(localSolution, localSource, &invertParam); 
+  loadGaugeQuda(const_cast<void*>(link), &gaugeParam);
+  if(invertParam.dslash_type == QUDA_CLOVER_WILSON_DSLASH) loadCloverQuda(clover,cloverInverse, &invertParam);
+  invertQuda(solution, source, &invertParam); 
   *num_iters = invertParam.iter;
-
-  { // compute residuals
-    ColorSpinorParam csParam;
-    setColorSpinorParams(local_dim, host_precision, &csParam);
-    csParam.create = QUDA_ZERO_FIELD_CREATE;
-    cpuColorSpinorField* diffColorField = new cpuColorSpinorField(csParam);
-
-    csParam.create = QUDA_REFERENCE_FIELD_CREATE;
-    csParam.v 	   = localSource;
-    cpuColorSpinorField* sourceColorField = new cpuColorSpinorField(csParam);
-
-    csParam.v      = localSolution;
-    cpuColorSpinorField* solutionColorField = new cpuColorSpinorField(csParam);
-    ColorSpinorParam cpuParam(solutionColorField->V(), QUDA_CPU_FIELD_LOCATION, invertParam, local_dim, false);
-    ColorSpinorParam cudaParam(cpuParam, invertParam);
-
-    cudaParam.siteSubset = csParam.siteSubset;
-    cudaParam.create     = QUDA_COPY_FIELD_CREATE;
-
-    cudaColorSpinorField cudaSolutionField(*solutionColorField, cudaParam);
-    cudaColorSpinorField cudaSourceField(*sourceColorField, cudaParam);
-    cudaParam.create = QUDA_NULL_FIELD_CREATE;
-    cudaColorSpinorField cudaOutField(cudaSolutionField, cudaParam);
-    DiracParam diracParam;
-    setDiracParam(diracParam, &invertParam, false);
-    Dirac *dirac = Dirac::create(diracParam);
-    dirac->M(cudaOutField, cudaSolutionField);
-    delete dirac;
-
-    mxpyCuda(cudaSourceField, cudaOutField);
-    cpuParam.v = diffColorField->V();
-    cpuColorSpinorField hOut(cpuParam);
-    hOut = cudaOutField;
-
-
-    *final_residual = invertParam.true_res;
-    *final_fermilab_residual = invertParam.true_res_hq;
-    printf("final residual = %g\n", *final_residual);
-    if(verbosity >= QUDA_VERBOSE) printf("final relative residual = %g\n", *final_fermilab_residual);
-
-    // Remove this!
-    *final_residual = computeRegularResidual(*sourceColorField, *diffColorField, invertParam.cpu_prec);    
-    if(verbosity >= QUDA_VERBOSE){
-      printf("target residual = %g\n", invertParam.tol);
-      printf("final residual = %g\n", *final_residual);
-    }
-
-    if(invertParam.cpu_prec == QUDA_DOUBLE_PRECISION){
-      *final_fermilab_residual = computeFermilabResidual<double>(*solutionColorField, *diffColorField); 
-    }else{
-      *final_fermilab_residual = computeFermilabResidual<float>(*solutionColorField, *diffColorField);    
-    }
-    if(verbosity >= QUDA_VERBOSE) printf("final relative residual = %g\n", *final_fermilab_residual);
-
-    delete sourceColorField;
-    delete diffColorField;
-    delete solutionColorField;
-  } // Calculation of residuals
-
-  // copy the solution, if necessary 
-  loadRawField(volume*spinorSiteSize, gaugeParam.cpu_prec, &localSolution, milc_precision, &solution);
+  *final_residual = invertParam.true_res;
+  *final_fermilab_residual = invertParam.true_res_hq;
+  
   freeGaugeQuda();
 
   if(invertParam.dslash_type == QUDA_CLOVER_WILSON_DSLASH) freeCloverQuda();
-  // free the host source and solution fields
-  if(milc_precision != gaugeParam.cpu_prec){
-    free(localSource);
-    free(localSolution);
-  }
-
-  // free the host clover fields
-  if(milc_precision != invertParam.clover_cpu_prec && invertParam.dslash_type == QUDA_CLOVER_WILSON_DSLASH){
-    if(localClover) free(localClover);
-    if(localCloverInverse) free(localCloverInverse);
-  }
   
-  // free the host gauge fields
-  for(int dir=0; dir<4; ++dir){
-    free(gauge[dir]);
-  }
   return;
 } // qudaCloverInvert
 
