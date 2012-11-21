@@ -303,6 +303,7 @@ void qudaMultishiftInvert(int external_precision,
 		      const double target_fermilab_residual[],
                       const void* const fatlink,
                       const void* const longlink,
+		      const void* const preconlink,
                       void* source,
                       void** solutionArray,
                       double* const final_residual,
@@ -389,18 +390,22 @@ void qudaMultishiftInvert(int external_precision,
     gaugeParam.type = QUDA_GENERAL_LINKS;
     gaugeParam.ga_pad = fat_pad;  // don't know if this is correct
     gaugeParam.reconstruct = gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
+    gaugeParam.precondition = const_cast<void*>(preconlink);
     loadGaugeQuda(const_cast<void*>(fatlink), &gaugeParam); 
 
     const int long_pad = 3*fat_pad;
     gaugeParam.type = QUDA_THREE_LINKS;
     gaugeParam.ga_pad = long_pad; // don't know if this will work
+    gaugeParam.precondition = NULL;
     loadGaugeQuda(const_cast<void*>(longlink), &gaugeParam);
 #else // single-gpu code
     gaugeParam.type = QUDA_GENERAL_LINKS;
     gaugeParam.reconstruct = gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
+    gaugeParam.precondition = const_cast<void*>(preconlink);
     loadGaugeQuda(const_cast<void*>(fatlink), &gaugeParam);
 
     gaugeParam.type = QUDA_THREE_LINKS;
+    gaugeParam.precondition = NULL;
     loadGaugeQuda(const_cast<void*>(longlink), &gaugeParam);
 #endif
 
@@ -431,8 +436,9 @@ void qudaInvert(int external_precision,
 		QudaInvertArgs_t inv_args,
                 double target_residual, 
 	        double target_fermilab_residual,
-                const void* const fatlink,
-                const void* const longlink,
+                const void* const fatlink,   		// These should be put into a single
+                const void* const longlink,	        // structure
+		const void* const preconlink,
                 void* source,
                 void* solution,
                 double* const final_residual,
@@ -532,17 +538,21 @@ void qudaInvert(int external_precision,
     gaugeParam.type = QUDA_GENERAL_LINKS;
     gaugeParam.ga_pad = fat_pad; 
     gaugeParam.reconstruct = gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
+    gaugeParam.precondition = const_cast<void*>(preconlink);
     loadGaugeQuda(const_cast<void*>(fatlink), &gaugeParam); 
 
     gaugeParam.type = QUDA_THREE_LINKS;
     gaugeParam.ga_pad = long_pad; 
+    gaugeParam.precondition = NULL;
     loadGaugeQuda(const_cast<void*>(longlink), &gaugeParam);
 #else // single-gpu code
     gaugeParam.type = QUDA_GENERAL_LINKS;
     gaugeParam.reconstruct = gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
+    gaugeParam.precondition = const_cast<void*>(preconlink);
     loadGaugeQuda(const_cast<void*>(fatlink), &gaugeParam);
 
     gaugeParam.type = QUDA_THREE_LINKS;
+    gaugeParam.precondition = NULL;
     loadGaugeQuda(const_cast<void*>(longlink), &gaugeParam);
 #endif
    timer.check("Set up and data load");
