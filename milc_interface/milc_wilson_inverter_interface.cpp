@@ -182,7 +182,7 @@ void qudaCloverInvert(int external_precision,
   pad_size = MAX(pad_size, t_face_size);
   gaugeParam.ga_pad = pad_size;    
 #endif // MULTI_GPU
-  invertParam.prec_precondition             = device_precision_sloppy;
+  invertParam.cuda_prec_precondition             = device_precision_sloppy;
   invertParam.verbosity_precondition        = QUDA_SILENT;
   invertParam.cpu_prec 		            = host_precision;
   invertParam.cuda_prec		            = device_precision;
