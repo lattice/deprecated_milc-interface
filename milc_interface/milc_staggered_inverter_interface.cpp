@@ -354,6 +354,8 @@ void qudaMultishiftInvert(int external_precision,
   QudaGaugeParam gaugeParam = newQudaGaugeParam();
   // a basic set routine for the gauge parameters
   setGaugeParams(local_dim, host_precision, device_precision, device_precision_sloppy, &gaugeParam);
+
+  printf("local_dim = %d %d %d %d\n", local_dim[0], local_dim[1], local_dim[2], local_dim[3]);
   
   QudaInvertParam invertParam = newQudaInvertParam();
   invertParam.residual_type = (target_fermilab_residual[0] != 0) ? QUDA_HEAVY_QUARK_RESIDUAL : QUDA_L2_RELATIVE_RESIDUAL;
@@ -409,13 +411,27 @@ void qudaMultishiftInvert(int external_precision,
     loadGaugeQuda(const_cast<void*>(longlink), &gaugeParam);
 #endif
 
+  int volume=1;
+  for(int dir=0; dir<4; ++dir) volume *= gaugeParam.X[dir];
+
+  void** sln_pointer = (void**)malloc(num_offsets*sizeof(void*));
+  int quark_offset = getColorVectorOffset(local_parity, false, volume);
+  void* src_pointer;
+
+  if(host_precision == QUDA_SINGLE_PRECISION){
+    src_pointer = (float*)source + quark_offset;
+    for(int i=0; i<num_offsets; ++i) sln_pointer[i] = (float*)solutionArray[i] + quark_offset;
+  }else{
+    src_pointer = (double*)source + quark_offset;
+    for(int i=0; i<num_offsets; ++i) sln_pointer[i] = (double*)solutionArray[i] + quark_offset;
+  }
+
   timer.check("Setup and data load");
-  invertMultiShiftQuda(solutionArray, source, &invertParam);
+  invertMultiShiftQuda(sln_pointer, src_pointer, &invertParam);
   timer.check("invertMultiShiftQuda");
   timer.check();
  
-  printfQuda("Gflops = %e\n", invertParam.gflops);
-  
+  free(sln_pointer); 
 
   // return the number of iterations taken by the inverter
   *num_iters = invertParam.iter;
@@ -555,9 +571,24 @@ void qudaInvert(int external_precision,
     gaugeParam.precondition = NULL;
     loadGaugeQuda(const_cast<void*>(longlink), &gaugeParam);
 #endif
-   timer.check("Set up and data load");
 
-   invertQuda(solution, source, &invertParam); 
+  int volume=1;
+  for(int dir=0; dir<4; ++dir) volume *= gaugeParam.X[dir];
+  int quark_offset = getColorVectorOffset(local_parity, false, volume);
+  void* src_pointer;
+  void* sln_pointer; 
+
+  if(host_precision == QUDA_SINGLE_PRECISION){
+    src_pointer = (float*)source + quark_offset;
+    sln_pointer = (float*)solution + quark_offset;
+  }else{
+    src_pointer = (double*)source + quark_offset;
+    sln_pointer = (double*)solution + quark_offset;
+  }
+
+
+   timer.check("Set up and data load");
+   invertQuda(sln_pointer, src_pointer, &invertParam); 
    timer.check("invertQuda");
 
 
