@@ -354,8 +354,6 @@ void qudaMultishiftInvert(int external_precision,
   // a basic set routine for the gauge parameters
   setGaugeParams(local_dim, host_precision, device_precision, device_precision_sloppy, &gaugeParam);
 
-  printf("local_dim = %d %d %d %d\n", local_dim[0], local_dim[1], local_dim[2], local_dim[3]);
-  
   QudaInvertParam invertParam = newQudaInvertParam();
   invertParam.residual_type = (target_fermilab_residual[0] != 0) ? QUDA_HEAVY_QUARK_RESIDUAL : QUDA_L2_RELATIVE_RESIDUAL;
 
