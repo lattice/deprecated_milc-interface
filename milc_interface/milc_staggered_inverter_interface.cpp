@@ -1,8 +1,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
-#include <time.h>
-#include <string.h>
+#include <ctime>
+#include <cstring>
 
 #include <test_util.h>
 #include "../tests/blas_reference.h"
