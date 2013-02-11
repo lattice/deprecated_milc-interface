@@ -28,6 +28,21 @@ namespace milc_interface {
   namespace domain_decomposition {
 
 
+    void* getQuarkPointer(void* field, QudaPrecision precision, QudaParity parity, int volume)
+    {
+      const int quark_offset = getColorVectorOffset(parity, false, volume);
+      void* quark_pointer;
+      if(precision == QUDA_SINGLE_PRECISION){
+        quark_pointer = (float*)field + quark_offset;
+      }else if(precision == QUDA_DOUBLE_PRECISION){
+        quark_pointer = (double*)field + quark_offset;
+      }else{
+        errorQuda("Unrecognised precision");
+      }
+      return quark_pointer;
+    }
+
+
     void assignExtendedMILCGaugeField(const int dim[4],
         const int domain_overlap[4],
         QudaPrecision precision,
@@ -126,25 +141,53 @@ namespace milc_interface {
         QudaGaugeParams gaugeParams;
         setGaugeParams(local_dim, precision, device_precision, device_sloppy_precion, &gaugeParam);
         // load the precise and sloppy gauge fields onto the device
-        loadGaugeQuda(fatlink, &gaugeParam);
-        loadGaugeQuda(longlink, &gaugeParam);
+        const int fat_pad = getFatLinkPadding(local_dim);
+        const int long_pad = 3*fat_pad;
+
+        gaugeParam.reconstruct = gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
+
+        gaugeParam.type = QUDA_GENERAL_LINKS;
+        gaugeParam.ga_pad = fat_pad;
+        loadGaugeQuda(const_cast<void*>(fatlink), &gaugeParam);
+        gaugeParam.type = QUDA_THREE_LINKS;
+        gaugeParam.ga_pad = long_pad;
+        loadGaugeQuda(const_cast<void*>(longlink), &gaugeParam);
 
         FieldHandle extended_fatlink(new char[extended_volume*4*link_size]); // RAII => delete is called upon destruction of 
-                                                                             //         extended_fatlink
+        //         extended_fatlink
         // Extend the fat gauge field
         assignExtendedMILCGaugeField(local_dim, local_precision, fatlink, extended_fatlink.get());
         exchange_cpu_sitelink_ex(local_dim, domain_overlap, extended_fatlink.get(), QUDA_MILC_GAUGE_ORDER, precision, 1); 
 
         setGaugeParams(extended_dim, precision, device_precon_precision, device_precon_precision, &gaugeParam);
+        gaugeParam.type = QUDA_GENERAL_LINKS;
+        gaugeParam.ga_pad = getFatLinkPadding(extended_dim);
         loadPreconGaugeQuda(extended_fatlink.get(), &gaugeParam);
       }
 
       // set up the inverter
       {
+        QudaInvertParam invertParam;
+        setInvertParams(local_dim, local_precision, device_precision, device_sloppy_precision, 
+            mass, target_res, inv_args.max_iter, 1e-1, inv_args.evenodd,
+            verbosity, &invertParam);
+
+        ColorSpinorParam csParam;
+        setColorSpinorParams(local_dim, local_precision, &csParam);
+
+        // Set the pointers to the source and solution parity fields
+        const int volume = getVolume(local_dim);
+        void* src_pointer = getQuarkPointer(source, precision, inv_args.evenodd, volume);
+        void* sln_pointer = getQuarkPointer(solution, precision, inv_args.evenodd, volume);
+
+        invertQuda(sln_pointer, src_pointer, &invertParam);
+
+        *num_iters = invertParam.iter;
+        *final_residual = invertParam.true_res;
+        *final_fermilab_residual = invertParam.true_res_hq; 
       }
-
-
-
+      freeGaugeQuda(); // free up the gauge-field objects allocated in loadGaugeQuda
+      return;
     } // qudaDDInvert
 
   } // namespace domain_decomposition
