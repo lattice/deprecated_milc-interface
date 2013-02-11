@@ -4,7 +4,7 @@
 #include <ctime>
 #include <cstring>
 
-#include <test_utl.h>
+#include <test_util.h>
 #include "../tests/blas_reference.h" // What do I need here?
 #include "../tests/staggered_dslash_reference.h" // What do I need here?
 
@@ -23,6 +23,9 @@
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
 #include "include/milc_utilities.h"
+#include "include/milc_inverter_utilities.h"
+
+using namespace quda;
 
 namespace milc_interface {
   namespace domain_decomposition {
@@ -65,8 +68,8 @@ namespace milc_interface {
         int site_id = i;
         int odd_bit = 0;
 
-        for(i >= half_extended_volume){
-          site_id = half_extended_volume;
+        if(i >= half_extended_volume){
+          site_id -= half_extended_volume;
           odd_bit = 1;
         }
         // x1h = site_id % half_dim0;
@@ -89,7 +92,7 @@ namespace milc_interface {
         x4 = (x4 - domain_overlap[3] + dim[3]) % dim[3];
 
         int little_index = (x4*dim[2]*dim[1]*dim[0] + x3*dim[1]*dim[0] + x2*dim[0] + x1) >> 1;
-        if(odd_bit){ index += half_volume; }
+        if(odd_bit){ little_index += half_volume; }
 
         memcpy((char*)dst + i*site_size, (char*)src + little_index*site_size, site_size); 
       } // loop over extended volume
@@ -103,92 +106,104 @@ namespace milc_interface {
         void* field_ptr;
       public:
         FieldHandle(void* fp) : field_ptr(fp) {}
-        ~FieldHandle(){ delete field_ptr; } 
+        ~FieldHandle(){ free(field_ptr); } 
         void* get(){ return field_ptr; }
     }; // RAII
 
-
-    void qudaDDInvert(int external_precision, 
-        int quda_precision,
-        double mass,
-        QudaInvertArgs_t inv_args,
-        const int const* domain_overlap,
-        const void* const fatlink,
-        const void* const longlink,
-        void* source,
-        void* solution,
-        double* const final_residual
-        double* const final_fermilab_residual){
-
-      // check to see if the domain overlaps are even
-      for(int dir=0; dir<4; ++dir){
-        if((domain_overlap[dir] % 2) != 0){
-          errorQuda("Odd overlap dimensions not yet supported");
-          return;
-        }
-      }
-      Layout layout;
-      const int* local_dim = layout.getLocalDim();
-      int* extended_dim;
-      for(int dir=0; dir<4; ++dir){ extended_dim[dir] = local_dim[dir] + 2*domain_overlap; }
-
-      const QudaPrecision precision = (external_precision == 1) ? QUDA_SINGLE_PRECISION : QUDA_DOUBLE_PRECISION;
-      const QudaPrecision device_precision = (quda_precision == 1) ? QUDA_SINGLE_PRECISION : QUDA_DOUBLE_PRECSISION;
-      const int link_size = 18*getRealSize(precision);
-      const QudaPrecision device_sloppy_precision = device_precision; // HACK!!
-
-      { // load the gauge fields
-        QudaGaugeParams gaugeParams;
-        setGaugeParams(local_dim, precision, device_precision, device_sloppy_precion, &gaugeParam);
-        // load the precise and sloppy gauge fields onto the device
-        const int fat_pad = getFatLinkPadding(local_dim);
-        const int long_pad = 3*fat_pad;
-
-        gaugeParam.reconstruct = gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
-
-        gaugeParam.type = QUDA_GENERAL_LINKS;
-        gaugeParam.ga_pad = fat_pad;
-        loadGaugeQuda(const_cast<void*>(fatlink), &gaugeParam);
-        gaugeParam.type = QUDA_THREE_LINKS;
-        gaugeParam.ga_pad = long_pad;
-        loadGaugeQuda(const_cast<void*>(longlink), &gaugeParam);
-
-        FieldHandle extended_fatlink(new char[extended_volume*4*link_size]); // RAII => delete is called upon destruction of 
-        //         extended_fatlink
-        // Extend the fat gauge field
-        assignExtendedMILCGaugeField(local_dim, local_precision, fatlink, extended_fatlink.get());
-        exchange_cpu_sitelink_ex(local_dim, domain_overlap, extended_fatlink.get(), QUDA_MILC_GAUGE_ORDER, precision, 1); 
-
-        setGaugeParams(extended_dim, precision, device_precon_precision, device_precon_precision, &gaugeParam);
-        gaugeParam.type = QUDA_GENERAL_LINKS;
-        gaugeParam.ga_pad = getFatLinkPadding(extended_dim);
-        loadPreconGaugeQuda(extended_fatlink.get(), &gaugeParam);
-      }
-
-      // set up the inverter
-      {
-        QudaInvertParam invertParam;
-        setInvertParams(local_dim, local_precision, device_precision, device_sloppy_precision, 
-            mass, target_res, inv_args.max_iter, 1e-1, inv_args.evenodd,
-            verbosity, &invertParam);
-
-        ColorSpinorParam csParam;
-        setColorSpinorParams(local_dim, local_precision, &csParam);
-
-        // Set the pointers to the source and solution parity fields
-        const int volume = getVolume(local_dim);
-        void* src_pointer = getQuarkPointer(source, precision, inv_args.evenodd, volume);
-        void* sln_pointer = getQuarkPointer(solution, precision, inv_args.evenodd, volume);
-
-        invertQuda(sln_pointer, src_pointer, &invertParam);
-
-        *num_iters = invertParam.iter;
-        *final_residual = invertParam.true_res;
-        *final_fermilab_residual = invertParam.true_res_hq; 
-      }
-      freeGaugeQuda(); // free up the gauge-field objects allocated in loadGaugeQuda
-      return;
-    } // qudaDDInvert
-
   } // namespace domain_decomposition
 } // namespace milc_interface
+
+
+
+void qudaDDInvert(int external_precision, 
+    int quda_precision,
+    double mass,
+    QudaInvertArgs_t inv_args,
+    double target_residual,
+    double target_fermilab_residual,
+    const int* const domain_overlap,
+    const void* const fatlink,
+    const void* const longlink,
+    void* source,
+    void* solution,
+    double* const final_residual,
+    double* const final_fermilab_residual,
+    int* num_iters){
+
+  using namespace milc_interface;
+  using namespace milc_interface::domain_decomposition;
+
+  // check to see if the domain overlaps are even
+  for(int dir=0; dir<4; ++dir){
+    if((domain_overlap[dir] % 2) != 0){
+      errorQuda("Odd overlap dimensions not yet supported");
+      return;
+    }
+  }
+  Layout layout;
+  const int* local_dim = layout.getLocalDim();
+  int* extended_dim;
+  for(int dir=0; dir<4; ++dir){ extended_dim[dir] = local_dim[dir] + 2*domain_overlap[dir]; }
+  const int extended_volume = getVolume(extended_dim);
+
+  const QudaVerbosity verbosity = QUDA_VERBOSE;	
+
+  const QudaPrecision precision = (external_precision == 1) ? QUDA_SINGLE_PRECISION : QUDA_DOUBLE_PRECISION;
+  const QudaPrecision device_precision = (quda_precision == 1) ? QUDA_SINGLE_PRECISION : QUDA_DOUBLE_PRECISION;
+  const int link_size = 18*getRealSize(precision);
+  const QudaPrecision device_sloppy_precision = device_precision; // HACK!!
+  const QudaPrecision device_precon_precision = device_sloppy_precision;
+
+  { // load the gauge fields
+    QudaGaugeParam gaugeParam;
+    setGaugeParams(local_dim, precision, device_precision, device_sloppy_precision, &gaugeParam);
+    // load the precise and sloppy gauge fields onto the device
+    const int fat_pad = getFatLinkPadding(local_dim);
+    const int long_pad = 3*fat_pad;
+
+    gaugeParam.reconstruct = gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
+
+    gaugeParam.type = QUDA_GENERAL_LINKS;
+    gaugeParam.ga_pad = fat_pad;
+    loadGaugeQuda(const_cast<void*>(fatlink), &gaugeParam);
+    gaugeParam.type = QUDA_THREE_LINKS;
+    gaugeParam.ga_pad = long_pad;
+    loadGaugeQuda(const_cast<void*>(longlink), &gaugeParam);
+
+    FieldHandle extended_fatlink(malloc(extended_volume*4*link_size)); // RAII => free is called upon destruction of 
+    //         extended_fatlink
+    // Extend the fat gauge field
+    assignExtendedMILCGaugeField(local_dim, domain_overlap, precision, fatlink, extended_fatlink.get());
+    exchange_cpu_sitelink_ex(const_cast<int*>(local_dim), const_cast<int*>(domain_overlap), (void**)(extended_fatlink.get()), QUDA_MILC_GAUGE_ORDER, precision, 1); 
+
+    setGaugeParams(extended_dim, precision, device_precon_precision, device_precon_precision, &gaugeParam);
+    gaugeParam.type = QUDA_GENERAL_LINKS;
+    gaugeParam.ga_pad = getFatLinkPadding(extended_dim);
+    loadPreconGaugeQuda(extended_fatlink.get(), &gaugeParam);
+  }
+
+  // set up the inverter
+  {
+    QudaInvertParam invertParam;
+    setInvertParams(local_dim, precision, device_precision, device_sloppy_precision, 
+        mass, target_residual, inv_args.max_iter, 1e-1, inv_args.evenodd,
+        verbosity, &invertParam);
+
+    ColorSpinorParam csParam;
+    setColorSpinorParams(local_dim, precision, &csParam);
+
+    // Set the pointers to the source and solution parity fields
+    const int volume = getVolume(local_dim);
+    void* src_pointer = getQuarkPointer(source, precision, inv_args.evenodd, volume);
+    void* sln_pointer = getQuarkPointer(solution, precision, inv_args.evenodd, volume);
+
+    invertQuda(sln_pointer, src_pointer, &invertParam);
+
+    *num_iters = invertParam.iter;
+    *final_residual = invertParam.true_res;
+    *final_fermilab_residual = invertParam.true_res_hq; 
+  }
+  freeGaugeQuda(); // free up the gauge-field objects allocated in loadGaugeQuda
+  return;
+} // qudaDDInvert
+
