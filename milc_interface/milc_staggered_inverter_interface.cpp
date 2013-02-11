@@ -369,3 +369,4 @@ void qudaInvert(int external_precision,
   return;
 } // qudaInvert
 
+#undef MAX

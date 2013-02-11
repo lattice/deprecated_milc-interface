@@ -1,5 +1,12 @@
 #include "include/milc_inverter_utilities.h"
 #include <quda.h>
+#include <color_spinor_field.h>
+
+
+using namespace quda;
+
+#define MAX(a,b) ((a)>(b)?(a):(b))
+
 
 namespace milc_interface {
 
@@ -176,6 +183,6 @@ namespace milc_interface {
 
 
 
-
-
 } // namespace milc_interface
+
+#undef MAX

@@ -3,7 +3,7 @@
 
 #include <cstdlib>
 #include <quda.h>
-#include <color_spinor_param.h>
+#include <color_spinor_field.h>
 
 namespace milc_interface {
 
@@ -44,7 +44,7 @@ namespace milc_interface {
 
   void setColorSpinorParams(const int dim[4],
       QudaPrecision precision,
-      ColorSpinorParam* param);
+      quda::ColorSpinorParam* param);
 
   
   int getFatLinkPadding(const int dim[4]);
