@@ -83,6 +83,7 @@ namespace milc_interface {
       double reliable_delta,
       QudaParity parity,
       QudaVerbosity verbosity,
+      QudaInverterType inverter,
       QudaInvertParam *invertParam)
   {
 
@@ -91,7 +92,7 @@ namespace milc_interface {
 
 
     setInvertParams(dim, cpu_prec, cuda_spinor_prec, cuda_spinor_prec_sloppy, 
-        null_mass, null_residual, maxiter, reliable_delta, parity, verbosity, invertParam);
+        null_mass, null_residual, maxiter, reliable_delta, parity, verbosity, inverter, invertParam);
 
     invertParam->num_offset = num_offset;
     for(int i=0; i<num_offset; ++i){
