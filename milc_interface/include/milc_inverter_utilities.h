@@ -3,6 +3,7 @@
 
 #include <cstdlib>
 #include <quda.h>
+#include <color_spinor_param.h>
 
 namespace milc_interface {
 

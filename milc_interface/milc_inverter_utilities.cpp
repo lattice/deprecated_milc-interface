@@ -1,4 +1,5 @@
 #include "include/milc_inverter_utilities.h"
+#include <quda.h>
 
 namespace milc_interface {
 
