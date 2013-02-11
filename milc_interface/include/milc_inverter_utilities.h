@@ -32,6 +32,7 @@ namespace milc_interface {
       double reliable_delta,
       QudaParity parity,
       QudaVerbosity verbosity,
+      QudaInverterType inverter,
       QudaInvertParam *invertParam); 
 
 

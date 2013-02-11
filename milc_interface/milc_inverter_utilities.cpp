@@ -21,6 +21,7 @@ namespace milc_interface {
       double reliable_delta,
       QudaParity parity,
       QudaVerbosity verbosity,
+      QudaInverterType inverter,
       QudaInvertParam *invertParam)
   {
     invertParam->verbosity = verbosity;
@@ -28,7 +29,7 @@ namespace milc_interface {
     invertParam->tol = target_residual;
     invertParam->num_offset = 0;
 
-    invertParam->inv_type = QUDA_CG_INVERTER;
+    invertParam->inv_type = inverter;
     invertParam->maxiter = maxiter;
     invertParam->reliable_delta = reliable_delta;
 

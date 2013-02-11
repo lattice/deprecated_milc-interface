@@ -152,7 +152,7 @@ void qudaMultishiftInvert(int external_precision,
 
     setInvertParams(local_dim, host_precision, device_precision, device_precision_sloppy,
         num_offsets, offset, target_residual, target_fermilab_residual, 
-        inv_args.max_iter, reliable_delta, local_parity, verbosity, &invertParam);
+        inv_args.max_iter, reliable_delta, local_parity, verbosity, QUDA_CG_INVERTER, &invertParam);
 
   }  
 
@@ -306,7 +306,7 @@ void qudaInvert(int external_precision,
   double& target_res = (invertParam.residual_type == QUDA_L2_RELATIVE_RESIDUAL) ? target_residual : target_fermilab_residual;
 
   setInvertParams(local_dim, host_precision, device_precision, device_precision_sloppy,
-      mass, target_res, inv_args.max_iter, 1e-1, local_parity, verbosity, &invertParam);
+      mass, target_res, inv_args.max_iter, 1e-1, local_parity, verbosity, QUDA_CG_INVERTER, &invertParam);
 
 
   ColorSpinorParam csParam;

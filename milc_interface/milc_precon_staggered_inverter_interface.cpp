@@ -187,7 +187,7 @@ void qudaDDInvert(int external_precision,
     QudaInvertParam invertParam;
     setInvertParams(local_dim, precision, device_precision, device_sloppy_precision, 
         mass, target_residual, inv_args.max_iter, 1e-1, inv_args.evenodd,
-        verbosity, &invertParam);
+        verbosity, QUDA_PCG_INVERTER, &invertParam); // preconditioned inverter
 
     ColorSpinorParam csParam;
     setColorSpinorParams(local_dim, precision, &csParam);
