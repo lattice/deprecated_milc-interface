@@ -9,8 +9,9 @@ namespace milc_interface {
 
   void setInvertParams(const int dim[4],
       QudaPrecision cpu_prec,
-      QudaPrecision cuda_spinor_prec,
-      QudaPrecision cuda_spinor_prec_sloppy,
+      QudaPrecision cuda_prec,
+      QudaPrecision cuda_prec_sloppy,
+      QudaPrecision cuda_prec_precondition,
       double mass, 
       double target_residual, 
       int maxiter,
@@ -23,8 +24,9 @@ namespace milc_interface {
 
   void setInvertParams(const int dim[4],
       QudaPrecision cpu_prec,
-      QudaPrecision cuda_spinor_prec,
-      QudaPrecision cuda_spinor_prec_sloppy,
+      QudaPrecision cuda_prec,
+      QudaPrecision cuda_prec_sloppy,
+      QudaPrecision cuda_prec_precondition,
       int num_offset,
       const double offset[],
       const double target_residual_offset[],
@@ -41,6 +43,7 @@ namespace milc_interface {
       QudaPrecision cpu_prec,
       QudaPrecision cuda_prec,
       QudaPrecision cuda_prec_sloppy,
+      QudaPrecision cuda_prec_precondition,
       QudaGaugeParam *gaugeParam);
 
 

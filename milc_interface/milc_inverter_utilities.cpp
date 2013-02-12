@@ -13,8 +13,9 @@ namespace milc_interface {
   // set the params for the single mass solver
   void setInvertParams(const int dim[4],
       QudaPrecision cpu_prec,
-      QudaPrecision cuda_spinor_prec,
-      QudaPrecision cuda_spinor_prec_sloppy,
+      QudaPrecision cuda_prec,
+      QudaPrecision cuda_prec_sloppy,
+      QudaPrecision cuda_prec_precondition,
       double mass,
       double target_residual, 
       int maxiter,
@@ -37,8 +38,8 @@ namespace milc_interface {
 
     invertParam->mass_normalization = QUDA_MASS_NORMALIZATION;
     invertParam->cpu_prec = cpu_prec;
-    invertParam->cuda_prec = cuda_spinor_prec;
-    invertParam->cuda_prec_sloppy = cuda_spinor_prec_sloppy;
+    invertParam->cuda_prec = cuda_prec;
+    invertParam->cuda_prec_sloppy = cuda_prec_sloppy;
 
     invertParam->solution_type = QUDA_MATPCDAG_MATPC_SOLUTION;
     invertParam->solve_type = QUDA_NORMEQ_PC_SOLVE; 
@@ -64,6 +65,20 @@ namespace milc_interface {
     invertParam->sp_pad = dim[0]*dim[1]*dim[2]/2;
     invertParam->use_init_guess = QUDA_USE_INIT_GUESS_YES; 
 
+#ifdef MULTI_GPU
+    invertParam->nface = 3;
+#else
+    invertParam->nface = 0;
+#endif
+
+    // for the preconditioner
+    invertParam->inv_type_precondition = QUDA_CG_INVERTER;
+    invertParam->tol_precondition = 1e-1;
+    invertParam->maxiter_precondition = 2;
+    invertParam->verbosity_precondition = QUDA_SILENT;
+    invertParam->cuda_prec_precondition = cuda_prec_precondition;
+
+
     return;
   }
 
@@ -73,8 +88,9 @@ namespace milc_interface {
   // Set params for the multi-mass solver.
   void setInvertParams(const int dim[4],
       QudaPrecision cpu_prec,
-      QudaPrecision cuda_spinor_prec,
-      QudaPrecision cuda_spinor_prec_sloppy,
+      QudaPrecision cuda_prec,
+      QudaPrecision cuda_prec_sloppy,
+      QudaPrecision cuda_prec_precondition,
       int num_offset,
       const double offset[],
       const double target_residual_offset[],
@@ -91,7 +107,7 @@ namespace milc_interface {
     const double null_residual = -1;
 
 
-    setInvertParams(dim, cpu_prec, cuda_spinor_prec, cuda_spinor_prec_sloppy, 
+    setInvertParams(dim, cpu_prec, cuda_prec, cuda_prec_sloppy, cuda_prec_precondition,
         null_mass, null_residual, maxiter, reliable_delta, parity, verbosity, inverter, invertParam);
 
     invertParam->num_offset = num_offset;
@@ -110,6 +126,7 @@ namespace milc_interface {
       QudaPrecision cpu_prec,
       QudaPrecision cuda_prec,
       QudaPrecision cuda_prec_sloppy,
+      QudaPrecision cuda_prec_precondition,
       QudaGaugeParam *gaugeParam)   
   {
 
@@ -129,6 +146,11 @@ namespace milc_interface {
     gaugeParam->t_boundary = QUDA_PERIODIC_T; // anti-periodic boundary conditions are built into the gauge field
     gaugeParam->gauge_order = QUDA_MILC_GAUGE_ORDER; 
     gaugeParam->ga_pad = dim[0]*dim[1]*dim[2]/2;
+
+
+    // preconditioning...
+    gaugeParam->cuda_prec_precondition = cuda_prec_precondition;
+    gaugeParam->reconstruct_precondition = QUDA_RECONSTRUCT_NO;
 
     return;
   }

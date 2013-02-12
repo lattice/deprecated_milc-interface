@@ -110,7 +110,10 @@ void qudaMultishiftInvert(int external_precision,
   QudaPrecision host_precision = (external_precision == 2) ? QUDA_DOUBLE_PRECISION : QUDA_SINGLE_PRECISION;
   QudaPrecision device_precision = (quda_precision == 2) ? QUDA_DOUBLE_PRECISION : QUDA_SINGLE_PRECISION;
   const bool use_mixed_precision = ((quda_precision==2) && inv_args.mixed_precision) ? true : false;
-  QudaPrecision device_precision_sloppy = (use_mixed_precision) ? QUDA_SINGLE_PRECISION : device_precision;
+  QudaPrecision device_precision_sloppy = (use_mixed_precision) ? QUDA_SINGLE_PRECISION :   device_precision;
+  QudaPrecision device_precision_precondition = device_precision_sloppy;
+
+
 
   PersistentData pd;
   static const QudaVerbosity verbosity = pd.getVerbosity();
@@ -130,7 +133,7 @@ void qudaMultishiftInvert(int external_precision,
 
   QudaGaugeParam gaugeParam = newQudaGaugeParam();
   // a basic set routine for the gauge parameters
-  setGaugeParams(local_dim, host_precision, device_precision, device_precision_sloppy, &gaugeParam);
+  setGaugeParams(local_dim, host_precision, device_precision, device_precision_sloppy, device_precision_precondition, &gaugeParam);
 
   QudaInvertParam invertParam = newQudaInvertParam();
   invertParam.residual_type = (target_fermilab_residual[0] != 0) ? QUDA_HEAVY_QUARK_RESIDUAL : QUDA_L2_RELATIVE_RESIDUAL;
@@ -150,7 +153,7 @@ void qudaMultishiftInvert(int external_precision,
   {
     const double reliable_delta = 1e-1;
 
-    setInvertParams(local_dim, host_precision, device_precision, device_precision_sloppy,
+    setInvertParams(local_dim, host_precision, device_precision, device_precision_sloppy, device_precision_precondition,
         num_offsets, offset, target_residual, target_fermilab_residual, 
         inv_args.max_iter, reliable_delta, local_parity, verbosity, QUDA_CG_INVERTER, &invertParam);
 
@@ -279,11 +282,11 @@ void qudaInvert(int external_precision,
   QudaPrecision host_precision = (external_precision == 2) ? QUDA_DOUBLE_PRECISION : QUDA_SINGLE_PRECISION;
   QudaPrecision device_precision = (quda_precision == 2) ? QUDA_DOUBLE_PRECISION : QUDA_SINGLE_PRECISION;
   QudaPrecision device_precision_sloppy = (use_mixed_precision) ? QUDA_SINGLE_PRECISION : device_precision;
-
+  QudaPrecision device_precision_precondition = device_precision_sloppy;
 
   QudaGaugeParam gaugeParam = newQudaGaugeParam();
   // a basic set routine for the gauge parameters
-  setGaugeParams(local_dim, host_precision, device_precision, device_precision_sloppy, &gaugeParam);
+  setGaugeParams(local_dim, host_precision, device_precision, device_precision_sloppy, device_precision_precondition, &gaugeParam);
 
   QudaInvertParam invertParam = newQudaInvertParam();
   invertParam.residual_type = (target_residual != 0) ? QUDA_L2_RELATIVE_RESIDUAL : QUDA_HEAVY_QUARK_RESIDUAL;
@@ -305,7 +308,7 @@ void qudaInvert(int external_precision,
 
   double& target_res = (invertParam.residual_type == QUDA_L2_RELATIVE_RESIDUAL) ? target_residual : target_fermilab_residual;
 
-  setInvertParams(local_dim, host_precision, device_precision, device_precision_sloppy,
+  setInvertParams(local_dim, host_precision, device_precision, device_precision_sloppy, device_precision_precondition,
       mass, target_res, inv_args.max_iter, 1e-1, local_parity, verbosity, QUDA_CG_INVERTER, &invertParam);
 
 
