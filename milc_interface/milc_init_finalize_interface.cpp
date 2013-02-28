@@ -5,9 +5,6 @@
 #include <iomanip>
 #include "external_headers/quda_milc_interface.h"
 
-#ifdef MULTI_GPU
-#include <comm_quda.h>
-#endif
 
 void qudaInit(QudaInitArgs_t input)
 {
@@ -24,9 +21,23 @@ void qudaInit(QudaInitArgs_t input)
   qudaSetLayout(input.layout);
 
   initialized = true;
-	return;
 }
 
+
+/**
+ * Implements a lexicographical mapping of node coordinates to ranks,
+ * with t varying fastest.
+ */
+static int rankFromCoords(const int *coords, void *fdata)
+{
+  int *dims = static_cast<int *>(fdata);
+
+  int rank = coords[3];
+  for (int i = 2; i >= 0; i--) {
+    rank = dims[i] * rank + coords[i];
+  }
+  return rank;
+}
 
 
 void qudaSetLayout(QudaLayout_t input)
@@ -47,22 +58,18 @@ void qudaSetLayout(QudaLayout_t input)
 
   Layout layout;
   layout.setLocalDim(local_dim);
+
 #ifdef MULTI_GPU
   layout.setGridDim(input.machsize);
   const int* grid_size = layout.getGridDim();
+  initCommsGridQuda(4, grid_size, rankFromCoords, static_cast<void *>(grid_size));
 
-  comm_set_gridsize(grid_size,4);
-  comm_init();
-#endif
-
-
-#ifdef MULTI_GPU
   static int device = -1;
 #else
   static int device = input.device;
 #endif
+
   initQuda(device);
-  return;
 }
 
 

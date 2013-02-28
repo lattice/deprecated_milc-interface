@@ -19,7 +19,7 @@
 
 #ifdef MULTI_GPU
 #include <face_quda.h>
-#include <comm_quda.h>
+#include <comm_quda.h> // for comm_coords()
 #endif
 
 
