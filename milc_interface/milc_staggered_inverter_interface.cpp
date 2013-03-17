@@ -19,7 +19,7 @@
 
 #ifdef MULTI_GPU
 #include <face_quda.h>
-#include <comm_quda.h> // for comm_coords()
+#include <comm_quda.h> // for comm_coord()
 #endif
 
 
@@ -142,7 +142,7 @@ void qudaMultishiftInvert(int external_precision,
 #ifdef MULTI_GPU
   int logical_coord[4];
   for(int dir=0; dir<4; ++dir){
-    logical_coord[dir] = comm_coords(dir); // used MPI
+    logical_coord[dir] = comm_coord(dir); // used MPI
   }
   const bool even_odd_exchange = false;	
 #else // serial code
@@ -294,7 +294,7 @@ void qudaInvert(int external_precision,
 
 #ifdef MULTI_GPU 
   int logical_coord[4];
-  for(int dir=0; dir<4; ++dir) logical_coord[dir] = comm_coords(dir);
+  for(int dir=0; dir<4; ++dir) logical_coord[dir] = comm_coord(dir);
   const bool even_odd_exchange = doEvenOddExchange(local_dim, logical_coord);
 #else // single gpu 
   const bool even_odd_exchange = false;
