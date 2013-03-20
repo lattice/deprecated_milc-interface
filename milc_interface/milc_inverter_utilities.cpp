@@ -65,12 +65,13 @@ namespace milc_interface {
     invertParam->sp_pad = dim[0]*dim[1]*dim[2]/2;
     invertParam->use_init_guess = QUDA_USE_INIT_GUESS_YES; 
 
+/*
 #ifdef MULTI_GPU
     invertParam->nface = 3;
 #else
     invertParam->nface = 0;
 #endif
-
+*/
     // for the preconditioner
     invertParam->inv_type_precondition = QUDA_CG_INVERTER;
     invertParam->tol_precondition = 1e-1;

@@ -17,7 +17,7 @@ ifeq ($(strip $(BUILD_STAGGERED_DIRAC)),yes)
 	INTERFACE_OBJS += milc_staggered_inverter_interface.o milc_inverter_utilities.o
 endif
 
-ifeq ($(strip $(BUILD_STAGGERED_DIRAC)),yes)
+ifeq ($(strip $(BUILD_PRECON_STAGGERED_DIRAC)),yes)
 	INTERFACE_OBJS += milc_precon_staggered_inverter_interface.o milc_inverter_utilities.o
 endif
 

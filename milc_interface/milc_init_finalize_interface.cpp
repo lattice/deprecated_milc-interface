@@ -62,7 +62,7 @@ void qudaSetLayout(QudaLayout_t input)
 #ifdef MULTI_GPU
   layout.setGridDim(input.machsize);
   const int* grid_size = layout.getGridDim();
-  initCommsGridQuda(4, grid_size, rankFromCoords, static_cast<void *>(grid_size));
+  initCommsGridQuda(4, grid_size, rankFromCoords, (void *)(grid_size));
 
   static int device = -1;
 #else
