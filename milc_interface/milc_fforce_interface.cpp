@@ -42,6 +42,8 @@ using namespace quda;
 
 namespace { // anonymous namespace
 
+TimeProfile profileHISQForceInterface("HISQForceInterface");
+
 cudaGaugeField *cudaGauge = NULL;
 #ifndef MULTI_GPU
 cpuGaugeField *cpuGauge = NULL;
@@ -579,7 +581,7 @@ qudaHisqForce(
 
 #define QUDA_VER ((10000*QUDA_VERSION_MAJOR) + (100*QUDA_VERSION_MINOR) + QUDA_VERSION_SUBMINOR)
 #if (QUDA_VER > 400)
-  initLatticeConstants(*cpuMom);
+  initLatticeConstants(*cpuMom, profileHISQForceInterface);
 #else
   initGaugeFieldConstants(*cudaGauge);
 #endif
@@ -767,8 +769,8 @@ qudaHisqForce(
 
 #define QUDA_VER ((10000*QUDA_VERSION_MAJOR) + (100*QUDA_VERSION_MINOR) + QUDA_VERSION_SUBMINOR)
 #if (QUDA_VER > 400)
-  initLatticeConstants(*cudaGauge);
-  initGaugeConstants(*cudaGauge);
+  initLatticeConstants(*cudaGauge, profileHISQForceInterface);
+  initGaugeConstants(*cudaGauge, profileHISQForceInterface);
 #else
   initGaugeFieldConstants(*cudaGauge);
 #endif

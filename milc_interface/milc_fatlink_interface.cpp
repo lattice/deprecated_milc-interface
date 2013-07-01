@@ -16,7 +16,7 @@
 #include "include/milc_timer.h"
 
 
-
+static TimeProfile profileFatLinkInterface("fatlinkInterface");
 
 // No need to do this if I return a pointer
 
@@ -340,7 +340,7 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
 
 #define QUDA_VER ((10000*QUDA_VERSION_MAJOR) + (100*QUDA_VERSION_MINOR) + QUDA_VERSION_SUBMINOR)
 #if (QUDA_VER > 400)
-  initLatticeConstants(*cudaFatLink);
+  initLatticeConstants(*cudaFatLink, profileFatLinkInterface);
 #else
   initCommonConstants(*cudaFatLink);
 #endif
