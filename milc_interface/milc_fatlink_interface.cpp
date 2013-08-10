@@ -373,11 +373,7 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
   } // Initialise and load siteLinks
 
   timer.check("Setup and data load");
-  //printf(" %s starts to compute\n", __FUNCTION__);
-  // time the subroutines in computeFatLinkCore
-  struct timeval time_array[4];
-  // Actually do the fattening
-  computeFatLinkCore(cudaInLink, const_cast<double*>(path_coeff), &param, method, cudaFatLink, time_array);
+  computeFatLinkCore(cudaInLink, const_cast<double*>(path_coeff), &param, method, cudaFatLink, profileFatLinkInterface);
 
   timer.check("computeFatLinkCore");
  
