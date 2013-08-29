@@ -39,6 +39,7 @@
 
 
 using namespace quda;
+quda::TimeProfile profileAsqtadForceInterface("AsqtadForceInterface");
 
 namespace { // anonymous namespace
 
@@ -49,6 +50,8 @@ cudaGaugeField *cudaGauge = NULL;
 cpuGaugeField *cpuGauge = NULL;
 cudaGaugeField *cudaInForce = NULL;
 cpuGaugeField *cpuInForce = NULL;
+cpuGaugeField *cpuOneLinkInForce = NULL;
+cpuGaugeField *cpuNaikInForce = NULL;
 cudaGaugeField *cudaOutForce = NULL;
 cpuGaugeField *cpuOutForce = NULL;
 #endif
@@ -154,7 +157,7 @@ allocateMomentum(const int dim[4], QudaPrecision precision)
 
 
 static void 
-hisqForceStartup(const int dim[4], QudaPrecision precision)
+hisqForceStartup(const int dim[4], QudaPrecision precision, void *milc_momentum)
 {
   for(int dir=0; dir<4; ++dir){
     // STANDARD
@@ -224,8 +227,13 @@ hisqForceStartup(const int dim[4], QudaPrecision precision)
   param.order  = QUDA_MILC_GAUGE_ORDER;
   
   param.reconstruct = QUDA_RECONSTRUCT_10;
+  param.create = QUDA_REFERENCE_FIELD_CREATE;
+  param.gauge = milc_momentum;
+
   cpuMom = new cpuGaugeField(param);
   memset(cpuMom->Gauge_p(), 0, cpuMom->Bytes());
+
+  param.create = QUDA_NULL_FIELD_CREATE;
   param.order  = QUDA_QDP_GAUGE_ORDER;
 
   // STANDARD
@@ -259,7 +267,7 @@ hisqForceStartup(const int dim[4], QudaPrecision precision)
 #else // single gpu
 
 static void
-hisqForceStartup(const int dim[4], QudaPrecision precision)
+hisqForceStartup(const int dim[4], QudaPrecision precision, void *milc_momentum)
 {
 
   for(int dir=0; dir<4; ++dir){
@@ -288,10 +296,16 @@ hisqForceStartup(const int dim[4], QudaPrecision precision)
   cpuInForce = new cpuGaugeField(param);
   cpuOutForce = new cpuGaugeField(param);
   param.reconstruct = QUDA_RECONSTRUCT_10;
+  param.create = QUDA_REFERENCE_FIELD_CREATE;
+  param.gauge = milc_momentum;
+  
   cpuMom = new cpuGaugeField(param);
   memset(cpuMom->Gauge_p(), 0, cpuMom->Bytes());
 
+  param.create = QUDA_NULL_FIELD_CREATE;
+
   // allocate memory for the device arrays
+  gaugeParam.gauge_order = QUDA_FLOAT2_GAUGE_ORDER;
   param.precision = gaugeParam.cuda_prec;
   param.reconstruct = QUDA_RECONSTRUCT_NO;
   cudaGauge = new cudaGaugeField(param);
@@ -333,6 +347,8 @@ hisqForceEnd()
   if(cudaOutForce) { delete cudaOutForce; cudaOutForce = NULL;}
 
   if(cpuInForce)  { delete cpuInForce;  cpuInForce = NULL;}
+  if(cpuOneLinkInForce)  { delete cpuOneLinkInForce;  cpuOneLinkInForce = NULL;}
+  if(cpuNaikInForce)  { delete cpuNaikInForce;  cpuInForce = NULL;}
   if(cpuOutForce) { delete cpuOutForce; cpuOutForce = NULL;}
   if(cpuGauge)    { delete cpuGauge;    cpuGauge = NULL;}
   if(cudaGauge)   { delete cudaGauge;  cudaGauge = NULL;}
@@ -576,7 +592,7 @@ qudaHisqForce(
   QudaPrecision local_precision = (precision==1) ? QUDA_SINGLE_PRECISION : QUDA_DOUBLE_PRECISION;
 
   timer.check();
-  hisqForceStartup(layout.getLocalDim(), local_precision);
+  hisqForceStartup(layout.getLocalDim(), local_precision, milc_momentum);
   timer.check("hisqForceStartup");
 
 #define QUDA_VER ((10000*QUDA_VERSION_MAJOR) + (100*QUDA_VERSION_MINOR) + QUDA_VERSION_SUBMINOR)
@@ -722,7 +738,7 @@ qudaHisqForce(
   timer.check("hisqCompleteForceCuda");
 #endif
   cudaMom->saveCPUField(*cpuMom, QUDA_CPU_FIELD_LOCATION);
-  memcpy(milc_momentum, cpuMom->Gauge_p(), cpuMom->Bytes());
+  //memcpy(milc_momentum, cpuMom->Gauge_p(), cpuMom->Bytes());
 
   hisqForceEnd();
 
@@ -764,7 +780,7 @@ qudaHisqForce(
 
   Layout layout;
   QudaPrecision local_precision = (precision==1) ? QUDA_SINGLE_PRECISION : QUDA_DOUBLE_PRECISION;
-  hisqForceStartup(layout.getLocalDim(), local_precision);
+  hisqForceStartup(layout.getLocalDim(), local_precision, milc_momentum);
 
 
 #define QUDA_VER ((10000*QUDA_VERSION_MAJOR) + (100*QUDA_VERSION_MINOR) + QUDA_VERSION_SUBMINOR)
@@ -840,12 +856,166 @@ qudaHisqForce(
   hisqCompleteForceCuda(gaugeParam, *cudaOutForce, *cudaGauge, cudaMom);
 
   cudaMom->saveCPUField(*cpuMom, QUDA_CPU_FIELD_LOCATION);
-  memcpy(milc_momentum, cpuMom->Gauge_p(), cpuMom->Bytes());
+  //memcpy(milc_momentum, cpuMom->Gauge_p(), cpuMom->Bytes());
 
 
   hisqForceEnd();
 
   return;
 }
+
+
+static void
+asqtadForceStartup(const int dim[4], QudaPrecision precision, 
+		   const void * const one_link_src[4], const void * const naik_src[4], 
+		   const void * const link, void* const milc_momentum)
+{
+
+  for(int dir=0; dir<4; ++dir){
+    gaugeParam.X[dir] = dim[dir];
+    forceParam.X[dir] = dim[dir];
+  }
+
+  gaugeParam.gauge_order = QUDA_MILC_GAUGE_ORDER;
+
+  gaugeParam.cpu_prec = gaugeParam.cuda_prec = precision;
+  gaugeParam.reconstruct = QUDA_RECONSTRUCT_NO;
+
+  forceParam.cpu_prec = forceParam.cuda_prec = precision;
+  forceParam.reconstruct = QUDA_RECONSTRUCT_NO;
+
+  GaugeFieldParam param(0, gaugeParam);
+  param.create = QUDA_NULL_FIELD_CREATE;
+  param.anisotropy = 1.0;
+
+
+  param.link_type = QUDA_SU3_LINKS;
+  param.reconstruct = QUDA_RECONSTRUCT_NO;
+  // allocate memory for the host arrays
+  param.precision = gaugeParam.cpu_prec;
+  param.create = QUDA_REFERENCE_FIELD_CREATE;
+  param.gauge = (void*)link;
+  cpuGauge = new cpuGaugeField(param);
+
+  param.create = QUDA_REFERENCE_FIELD_CREATE;
+  param.link_type = QUDA_ASQTAD_FAT_LINKS;
+  param.precision = forceParam.cpu_prec;
+  param.reconstruct = QUDA_RECONSTRUCT_NO;
+  param.order = QUDA_QDP_GAUGE_ORDER;  // these link_in_src and naik_src are in QDP order
+
+  param.gauge = (void*)one_link_src;
+  cpuOneLinkInForce = new cpuGaugeField(param);
+
+  param.gauge = (void*)naik_src;
+  cpuNaikInForce = new cpuGaugeField(param);
+
+  param.link_type = QUDA_ASQTAD_FAT_LINKS; // should this be LONG_LINKS?
+  cpuOutForce = new cpuGaugeField(param);
+
+  param.order = QUDA_MILC_GAUGE_ORDER;
+  param.link_type = QUDA_ASQTAD_MOM_LINKS;
+  param.reconstruct = QUDA_RECONSTRUCT_10;
+  param.gauge = milc_momentum;
+
+  cpuMom = new cpuGaugeField(param);
+
+  param.create = QUDA_NULL_FIELD_CREATE;
+  // allocate memory for the device arrays
+  param.link_type = QUDA_SU3_LINKS;
+  param.precision = gaugeParam.cuda_prec;
+  //param.reconstruct = QUDA_RECONSTRUCT_12;
+  param.reconstruct = QUDA_RECONSTRUCT_NO;
+  param.order = (param.reconstruct == QUDA_RECONSTRUCT_NO || param.precision == QUDA_DOUBLE_PRECISION) ? QUDA_FLOAT2_GAUGE_ORDER : QUDA_FLOAT4_GAUGE_ORDER;
+
+  cudaGauge = new cudaGaugeField(param);
+
+  param.order = QUDA_FLOAT2_GAUGE_ORDER;
+  param.link_type = QUDA_ASQTAD_FAT_LINKS;
+  param.precision = forceParam.cuda_prec;
+  param.reconstruct = QUDA_RECONSTRUCT_NO;
+  cudaInForce = new cudaGaugeField(param);
+  cudaOutForce = new cudaGaugeField(param);
+
+  param.link_type = QUDA_ASQTAD_MOM_LINKS;
+  param.reconstruct = QUDA_RECONSTRUCT_10;
+  cudaMom = new cudaGaugeField(param);
+
+  return; 
+}
+
+
+
+
+void
+qudaAsqtadForce(
+	      int precision,
+	      const double act_path_coeff[6],
+	      const void* const one_link_src[4],  
+	      const void* const naik_src[4], 
+              const void* const link,
+	      void* const milc_momentum)
+{
+
+  using namespace milc_interface;
+
+  using namespace quda::fermion_force;
+
+  profileAsqtadForceInterface.Start(QUDA_PROFILE_TOTAL);
+
+  profileAsqtadForceInterface.Start(QUDA_PROFILE_INIT);
+  Layout layout;
+  QudaPrecision local_precision = (precision==1) ? QUDA_SINGLE_PRECISION : QUDA_DOUBLE_PRECISION;
+  asqtadForceStartup(layout.getLocalDim(), local_precision, one_link_src, naik_src, link, milc_momentum); // Need to look at this
+  profileAsqtadForceInterface.Stop(QUDA_PROFILE_INIT);
+
+#define QUDA_VER ((10000*QUDA_VERSION_MAJOR) + (100*QUDA_VERSION_MINOR) + QUDA_VERSION_SUBMINOR)
+#if (QUDA_VER > 400)
+  initLatticeConstants(*cudaGauge, profileAsqtadForceInterface);
+  initGaugeConstants(*cudaGauge, profileAsqtadForceInterface);
+#else
+  initGaugeFieldConstants(*cudaGauge);
+#endif
+
+  profileAsqtadForceInterface.Start(QUDA_PROFILE_CONSTANT);
+  hisqForceInitCuda(&gaugeParam); // this just sets constants
+  profileAsqtadForceInterface.Stop(QUDA_PROFILE_CONSTANT);
+
+  //gaugeParam.reconstruct = QUDA_RECONSTRUCT_12;
+  gaugeParam.reconstruct = QUDA_RECONSTRUCT_NO;
+
+  profileAsqtadForceInterface.Start(QUDA_PROFILE_H2D);
+  cudaGauge->loadCPUField(*cpuGauge, QUDA_CPU_FIELD_LOCATION);
+  cudaInForce->loadCPUField(*cpuOneLinkInForce, QUDA_CPU_FIELD_LOCATION);
+  profileAsqtadForceInterface.Stop(QUDA_PROFILE_H2D);
+
+  cudaMemset((void**)(cudaOutForce->Gauge_p()), 0, cudaOutForce->Bytes());
+
+  profileAsqtadForceInterface.Start(QUDA_PROFILE_COMPUTE);
+  hisqStaplesForceCuda(act_path_coeff, gaugeParam, *cudaInForce, *cudaGauge, cudaOutForce);
+  profileAsqtadForceInterface.Stop(QUDA_PROFILE_COMPUTE);
+
+  profileAsqtadForceInterface.Start(QUDA_PROFILE_H2D);
+  cudaInForce->loadCPUField(*cpuNaikInForce, QUDA_CPU_FIELD_LOCATION); 
+  profileAsqtadForceInterface.Stop(QUDA_PROFILE_H2D);
+
+  profileAsqtadForceInterface.Start(QUDA_PROFILE_COMPUTE);
+  hisqLongLinkForceCuda(act_path_coeff[1], gaugeParam, *cudaInForce, *cudaGauge, cudaOutForce);
+  hisqCompleteForceCuda(gaugeParam, *cudaOutForce, *cudaGauge, cudaMom);
+  profileAsqtadForceInterface.Stop(QUDA_PROFILE_COMPUTE);
+
+  profileAsqtadForceInterface.Start(QUDA_PROFILE_D2H);
+  cudaMom->saveCPUField(*cpuMom, QUDA_CPU_FIELD_LOCATION);
+  profileAsqtadForceInterface.Stop(QUDA_PROFILE_D2H);
+
+  profileAsqtadForceInterface.Start(QUDA_PROFILE_FREE);
+  hisqForceEnd();
+  profileAsqtadForceInterface.Stop(QUDA_PROFILE_FREE);
+
+  profileAsqtadForceInterface.Stop(QUDA_PROFILE_TOTAL);
+  return;
+}
+
+
+
 
 #endif

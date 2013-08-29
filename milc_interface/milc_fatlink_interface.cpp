@@ -23,29 +23,29 @@ static TimeProfile profileFatLinkInterface("fatlinkInterface");
 
 namespace milc_interface {
 
-void copyGaugeField(int volume, QudaPrecision prec, void* src, void* dst)
-{
-  const int realSize = getRealSize(prec);
-  const int siteSize = 18;
-  memcpy(dst, src, 4*volume*siteSize*realSize);
+  void copyGaugeField(int volume, QudaPrecision prec, void* src, void* dst)
+  {
+    const int realSize = getRealSize(prec);
+    const int siteSize = 18;
+    memcpy(dst, src, 4*volume*siteSize*realSize);
 
-  return;
-}
+    return;
+  }
 
 
-void assignQDPGaugeField(const int dim[4], QudaPrecision precision, void* src, void** dst)
-{
-  const int matrix_size = 18*getRealSize(precision);
-  const int volume = getVolume(dim);
+  void assignQDPGaugeField(const int dim[4], QudaPrecision precision, void* src, void** dst)
+  {
+    const int matrix_size = 18*getRealSize(precision);
+    const int volume = getVolume(dim);
 
-  for(int i=0; i<volume; ++i){
-    for(int dir=0; dir<4; ++dir){
-	    char* dst_ptr = (char*)dst[dir];
-	    memcpy(dst_ptr + i*matrix_size, (char*)src + (i*4 + dir)*matrix_size, matrix_size);
-    } // end loop over directions
-  } // loop over the extended volume
-  return;
-}
+    for(int i=0; i<volume; ++i){
+      for(int dir=0; dir<4; ++dir){
+        char* dst_ptr = (char*)dst[dir];
+        memcpy(dst_ptr + i*matrix_size, (char*)src + (i*4 + dir)*matrix_size, matrix_size);
+      } // end loop over directions
+    } // loop over the extended volume
+    return;
+  }
 
 } // namespace milc_interface
 
@@ -53,11 +53,11 @@ void assignQDPGaugeField(const int dim[4], QudaPrecision precision, void* src, v
 
 
 
-void qudaLoadFatLink(int precision, QudaFatLinkArgs_t fatlink_args, const double act_path_coeff[6], void* inlink, void* outlink)
+void qudaLoadKSLink(int precision, QudaFatLinkArgs_t fatlink_args, const double act_path_coeff[6], void* inlink, void* fatlink, void* longlink)
 {
   using namespace milc_interface;
 
-  milc_interface::Timer timer("qudaLoadFatLink");
+  milc_interface::Timer timer("qudaLoadKSLink");
 #ifndef TIME_INTERFACE
   timer.mute();
 #endif
@@ -68,8 +68,8 @@ void qudaLoadFatLink(int precision, QudaFatLinkArgs_t fatlink_args, const double
   GridInfo local_latt_info(local_dim);
   const int volume = local_latt_info.getVolume();
 #ifdef MULTI_GPU  
-  QudaComputeFatMethod method = QUDA_COMPUTE_FAT_STANDARD;
-  //QudaComputeFatMethod method = QUDA_COMPUTE_FAT_EXTENDED_VOLUME;
+  //QudaComputeFatMethod method = QUDA_COMPUTE_FAT_STANDARD;
+  QudaComputeFatMethod method = QUDA_COMPUTE_FAT_EXTENDED_VOLUME;
 #else
   QudaComputeFatMethod method = QUDA_COMPUTE_FAT_STANDARD;
 #endif
@@ -85,18 +85,27 @@ void qudaLoadFatLink(int precision, QudaFatLinkArgs_t fatlink_args, const double
   }else if(method == QUDA_COMPUTE_FAT_EXTENDED_VOLUME){	
     int extended_dim[4] = {local_dim[0]+4, local_dim[1]+4, local_dim[2]+4, local_dim[3]+4};
     for(int dir=0; dir<4; ++dir) allocateColorField(getVolume(extended_dim), prec, usePinnedMemory, local_inlink[dir]);
+    double dtime = -((long)clock()/CLOCKS_PER_SEC);
     assignExtendedQDPGaugeField(local_dim, prec, inlink, local_inlink);
+    dtime += ((long)clock()/CLOCKS_PER_SEC);
+    printfQuda("Time to assign QDP field: %lf\n", dtime);
   }
 #else
   void* local_inlink = inlink;
 #endif
 
-  void* local_outlink;
+  void* local_fatlink;
+  void* local_longlink;
   if(usePinnedMemory){
-    allocateColorField(4*volume, prec, usePinnedMemory, local_outlink); 
+    allocateColorField(4*volume, prec, usePinnedMemory, local_fatlink); 
+    if(longlink){
+      allocateColorField(4*volume, prec, usePinnedMemory, local_longlink); 
+    }
   }else{
-    local_outlink = outlink;
+    local_fatlink = fatlink;
+    local_longlink = longlink;
   }
+
 
   QudaGaugeParam param = newQudaGaugeParam();
   // Make sure all parameters are initialised, even those that aren't needed
@@ -112,6 +121,7 @@ void qudaLoadFatLink(int precision, QudaFatLinkArgs_t fatlink_args, const double
 
   param.type        = QUDA_WILSON_LINKS; // an unfortunate misnomer
   param.reconstruct = QUDA_RECONSTRUCT_NO; // change this so it is read in at run time
+  //param.reconstruct = QUDA_RECONSTRUCT_12; // change this so it is read in at run time
   param.cpu_prec    = prec;
   param.cuda_prec   = prec;
 #ifdef MULTI_GPU
@@ -121,23 +131,29 @@ void qudaLoadFatLink(int precision, QudaFatLinkArgs_t fatlink_args, const double
 #endif
 
   timer.check("Setup and data load");
-  computeFatLinkQuda(local_outlink, (void**)local_inlink, const_cast<double*>(act_path_coeff), &param, method);
+  computeKSLinkQuda(local_fatlink, local_longlink, (void**)local_inlink, const_cast<double*>(act_path_coeff), &param, method);
+  timer.check("computeKSLinkQuda");
 
   if(usePinnedMemory){
-    copyGaugeField(volume, prec, local_outlink, outlink);
-    cudaFreeHost(local_outlink);
+    copyGaugeField(volume, prec, local_fatlink, fatlink);
+    cudaFreeHost(local_fatlink);
+    if(longlink){
+      copyGaugeField(volume, prec, local_longlink, longlink);
+      cudaFreeHost(local_longlink);
+    }
   }
+
+  
 
 #ifdef MULTI_GPU
   for(int dir=0; dir<4; ++dir){
-   if(usePinnedMemory){
-     cudaFreeHost(local_inlink[dir]);
-   }else{
-     free(local_inlink[dir]);
-   }     
+    if(usePinnedMemory){
+      cudaFreeHost(local_inlink[dir]);
+    }else{
+      free(local_inlink[dir]);
+    }     
   }
 #endif
-
 
   return;
 }
@@ -155,6 +171,8 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
 {
   using namespace milc_interface;
 
+  printfQuda("Calling qudaLoadUnitarizedLink\n");
+
   milc_interface::Timer timer("qudaLoadUnitarizedLink");
 #ifndef TIME_INTERFACE
   timer.mute();
@@ -170,8 +188,8 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
     const double svd_rel_error = 1e-6;
     const double svd_abs_error = 1e-6;
     quda::setUnitarizeLinksConstants(unitarize_eps, max_error,
-			       reunit_allow_svd, reunit_svd_only,
-			       svd_rel_error, svd_abs_error);
+        reunit_allow_svd, reunit_svd_only,
+        svd_rel_error, svd_abs_error);
   }
 
   const bool usePinnedMemory = (fatlink_args.use_pinned_memory) ? true : false;
@@ -187,8 +205,8 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
   QudaComputeFatMethod method;
 
 #ifdef MULTI_GPU
-//  method = QUDA_COMPUTE_FAT_EXTENDED_VOLUME;
-  method = QUDA_COMPUTE_FAT_STANDARD;
+  method = QUDA_COMPUTE_FAT_EXTENDED_VOLUME;
+  // method = QUDA_COMPUTE_FAT_STANDARD;
   void* local_inlink[4];
   if(method == QUDA_COMPUTE_FAT_STANDARD){
     for(int dir=0; dir<4; ++dir) allocateColorField(volume, prec, usePinnedMemory, local_inlink[dir]);
@@ -258,7 +276,7 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
   qudaGaugeParam_ex->llfat_ga_pad = param.llfat_ga_pad;
   qudaGaugeParam_ex->staple_pad   = param.staple_pad;
   qudaGaugeParam_ex->site_ga_pad  = param.site_ga_pad;
-  
+
   GaugeFieldParam gParam(0, param);
 
 
@@ -276,7 +294,7 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
     cpuFatLink->setGauge((void**)local_fatlink);
   }
 
-   // create the host fatlink
+  // create the host fatlink
   if(cpuUnitarizedLink == NULL){
     gParam.create = QUDA_REFERENCE_FIELD_CREATE;
     gParam.link_type = QUDA_GENERAL_LINKS;
@@ -295,17 +313,17 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
     gParam.pad    = param.llfat_ga_pad;
     gParam.create = QUDA_ZERO_FIELD_CREATE;
     gParam.link_type = QUDA_GENERAL_LINKS;
-    gParam.order = QUDA_QDP_GAUGE_ORDER;
+    gParam.order = QUDA_FLOAT2_GAUGE_ORDER;
     gParam.reconstruct = QUDA_RECONSTRUCT_NO;
     cudaFatLink = new cudaGaugeField(gParam);
   }
-  
+
   // create the device unitarize link - same format as the fatlink
   if(cudaUnitarizedLink == NULL){
     gParam.pad    = param.llfat_ga_pad;
     gParam.create = QUDA_ZERO_FIELD_CREATE;
     gParam.link_type = QUDA_GENERAL_LINKS;
-    gParam.order = QUDA_QDP_GAUGE_ORDER;
+    gParam.order = QUDA_FLOAT2_GAUGE_ORDER;
     gParam.reconstruct = QUDA_RECONSTRUCT_NO;
     cudaUnitarizedLink = new cudaGaugeField(gParam);
   }
@@ -334,7 +352,8 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
     gParam.pad         = param.site_ga_pad;
     gParam.create      = QUDA_NULL_FIELD_CREATE;
     gParam.link_type   = param.type;
-    gParam.reconstruct = param.reconstruct;      
+    gParam.reconstruct = param.reconstruct;    
+    gParam.order       = (param.reconstruct == QUDA_RECONSTRUCT_12) ? QUDA_FLOAT4_GAUGE_ORDER : QUDA_FLOAT4_GAUGE_ORDER;
     cudaInLink = new cudaGaugeField(gParam);
   }
 
@@ -354,15 +373,15 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
 #ifdef MULTI_GPU
       errorQuda("Only QDP-ordered site links are supported in the multi-gpu standard fattening code\n");
 #else
-      cudaInLink->loadCPUField(*cpuInLink, QUDA_CPU_FIELD_LOCATION);
+      loadLinkToGPU(cudaInLink, cpuInLink, &param);
 #endif
     }
   }else{
     llfat_init_cuda_ex(qudaGaugeParam_ex);
-	
+
 #ifdef MULTI_GPU
     int R[4] = {2, 2, 2, 2}; 
-    exchange_cpu_sitelink_ex(param.X, R, (void**)cpuInLink->Gauge_p(), QUDA_QDP_GAUGE_ORDER, param.cpu_prec, 1);
+    exchange_cpu_sitelink_ex(param.X, R, (void**)cpuInLink->Gauge_p(), QUDA_QDP_GAUGE_ORDER, param.cpu_prec, 0);
 #endif
     qudaGaugeParam_ex->ga_pad = qudaGaugeParam_ex->site_ga_pad;
     if(param.gauge_order == QUDA_QDP_GAUGE_ORDER){ 
@@ -373,11 +392,11 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
   } // Initialise and load siteLinks
 
   timer.check("Setup and data load");
-  computeFatLinkCore(cudaInLink, const_cast<double*>(path_coeff), &param, method, cudaFatLink, profileFatLinkInterface);
+  // Actually do the fattening
+  quda::computeFatLinkCore(cudaInLink, const_cast<double*>(path_coeff), &param, method, cudaFatLink, NULL, profileFatLinkInterface);
 
   timer.check("computeFatLinkCore");
- 
-  //printf(" %s finished compute\n", __FUNCTION__);
+
 
   int num_failures=0;
   int* num_failures_dev;
@@ -391,7 +410,7 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
   quda::unitarizeLinksCuda(param, *cudaFatLink, cudaUnitarizedLink, num_failures_dev); // unitarize on the gpu
 
   timer.check("unitarizeLinksCuda");
-  
+
   cudaMemcpy(&num_failures, num_failures_dev, sizeof(int), cudaMemcpyDeviceToHost);
   cudaFree(num_failures_dev); 
 
@@ -399,8 +418,6 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
     errorQuda("Error in the unitarization component of the hisq fattening\n"); 
     exit(1);
   } 
-
-
 
 
   // copy the fatlink back to the cpu
@@ -423,7 +440,6 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
   cudaThreadSynchronize(); checkCudaError();
   if(usePinnedMemory) copyGaugeField(volume, prec, local_ulink, ulink);
 
-
   if (!(preserve_gauge & QUDA_FAT_PRESERVE_CPU_GAUGE) ){
     if(cpuFatLink){ delete cpuFatLink; cpuFatLink = NULL; } 
     delete cpuInLink; cpuInLink = NULL;
@@ -434,8 +450,8 @@ void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const
     delete cudaFatLink; cudaFatLink = NULL;
     delete cudaInLink; cudaInLink = NULL;
     delete cudaUnitarizedLink; cudaUnitarizedLink = NULL;
-   }
-  
+  }
+
   if(usePinnedMemory){
     if(fatlink != NULL) cudaFreeHost(local_fatlink);
     cudaFreeHost(local_ulink);

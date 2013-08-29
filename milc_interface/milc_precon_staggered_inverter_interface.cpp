@@ -123,6 +123,7 @@ void qudaDDInvert(int external_precision,
     const int* const domain_overlap,
     const void* const fatlink,
     const void* const longlink,
+    const double tadpole,
     void* source,
     void* solution,
     double* const final_residual,
@@ -163,7 +164,7 @@ void qudaDDInvert(int external_precision,
 
   { // load the gauge fields
     QudaGaugeParam gaugeParam;
-    setGaugeParams(local_dim, precision, device_precision, device_sloppy_precision, device_precon_precision, &gaugeParam);
+    setGaugeParams(local_dim, precision, device_precision, device_sloppy_precision, device_precon_precision, tadpole, &gaugeParam);
     // load the precise and sloppy gauge fields onto the device
     const int fat_pad = getFatLinkPadding(local_dim);
     const int long_pad = 3*fat_pad;
@@ -183,7 +184,7 @@ void qudaDDInvert(int external_precision,
     assignExtendedMILCGaugeField(local_dim, domain_overlap, precision, fatlink, extended_fatlink.get());
     exchange_cpu_sitelink_ex(const_cast<int*>(local_dim), const_cast<int*>(domain_overlap), (void**)(extended_fatlink.get()), QUDA_MILC_GAUGE_ORDER, precision, 1); 
 
-    setGaugeParams(extended_dim, precision, device_precision, device_sloppy_precision, device_precon_precision, &gaugeParam);
+    setGaugeParams(extended_dim, precision, device_precision, device_sloppy_precision, device_precon_precision, tadpole, &gaugeParam);
     gaugeParam.type = QUDA_GENERAL_LINKS;
     gaugeParam.ga_pad = getFatLinkPadding(extended_dim);
     loadPreconGaugeQuda(extended_fatlink.get(), &gaugeParam);

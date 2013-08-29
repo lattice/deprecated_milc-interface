@@ -4,7 +4,7 @@
 #include <map>
 #include <cuda_runtime.h> // Needed for cudaMallocHost
 #include <string.h>
-
+#include <omp.h>
 
 namespace milc_interface {
 
@@ -200,47 +200,73 @@ namespace milc_interface {
 
     const int half_dim0 = extended_dim[0]/2;
     const int half_extended_volume = extended_volume/2;
+    const int half_volume = volume/2;
+    for(int t=0; t<extended_dim[3]; ++t){
+      int x4 = (t - 2 + dim[3]) % dim[3];
+      int off4 = x4*dim[2];
+   //   int ex_off4 = t*extended_dim[2];
+      for(int z=0; z<extended_dim[2]; ++z){
+        int x3 = (z - 2 + dim[2]) % dim[2];
+        int off3 = (off4 + x3)*dim[1];
+   //     int ex_off3 = (ex_off4 + z)*extended_dim[1];
+        for(int y=0; y<extended_dim[1]; ++y){
+          int x2 = (y - 2 + dim[1]) % dim[1];
+          int off2 = (off3 + x2)*dim[0];
+    //      int ex_off2 = (ex_off3 + y)*extended_dim[0];
+          for(int x=0; x<extended_dim[0]; ++x){
+            int x1 = (x - 2 + dim[0]) % dim[0];
+            int offset = (off2 + x1)>>1;
+    //        int ex_offset = (ex_off2 + x)>>1;
 
-    for(int i=0; i<extended_volume; ++i){
-      int site_id = i;
-      int odd_bit = 0;
+            const int odd_bit = (x + y + z + t) & 1; 
 
-      if(i >= half_extended_volume){
-        site_id -= half_extended_volume;
-        odd_bit  = 1;
-      }
+            int in_index = offset + odd_bit*half_volume;
+      //      int out_index = ex_offset + odd_bit*half_extended_volume;
+       
+           int out_index = ((((t*extended_dim[2] + z)*extended_dim[1] + y)*extended_dim[0] + x) >> 1) + odd_bit*half_extended_volume;
 
-      int za     = site_id/half_dim0;
-      int x1h    = site_id - za*half_dim0;
-      int zb     = za/extended_dim[1];
-      int x2     = za - zb*extended_dim[1];
-      int x4     = zb/extended_dim[2];
-      int x3     = zb - x4*extended_dim[2];
-      int x1odd  = (x2 + x3 + x4 + odd_bit) & 1;
-      int x1     = 2*x1h + x1odd;
+            for(int dir=0; dir<4; ++dir){
+              char* dst_ptr = (char*)dst[dir];
+              memcpy(dst_ptr + out_index*matrix_size, (char*)src + (in_index*4 + dir)*matrix_size, matrix_size);
+            } // end loop over directions
+          } // x
+        } // y
+      } // z
+    } // t
 
+    /*
+       for(int i=0; i<extended_volume; ++i){
+       int site_id = i;
+       int odd_bit = 0;
 
+       if(i >= half_extended_volume){
+       site_id -= half_extended_volume;
+       odd_bit  = 1;
+       }
 
-      x1 = (x1 - 2 + dim[0]) % dim[0];
-      x2 = (x2 - 2 + dim[1]) % dim[1];
-      x3 = (x3 - 2 + dim[2]) % dim[2];
-      x4 = (x4 - 2 + dim[3]) % dim[3];
+       int za     = site_id/half_dim0;
+       int x1h    = site_id - za*half_dim0;
+       int zb     = za/extended_dim[1];
+       int x2     = za - zb*extended_dim[1];
+       int x4     = zb/extended_dim[2];
+       int x3     = zb - x4*extended_dim[2];
+       int x1odd  = (x2 + x3 + x4 + odd_bit) & 1;
+       int x1     = 2*x1h + x1odd;
 
-      int full_index = (x4*dim[2]*dim[1]*dim[0] + x3*dim[1]*dim[0] + x2*dim[0] + x1)>>1;
-      if(odd_bit){ full_index += volume/2; }
+       x1 = (x1 - 2 + dim[0]) % dim[0];
+       x2 = (x2 - 2 + dim[1]) % dim[1];
+       x3 = (x3 - 2 + dim[2]) % dim[2];
+       x4 = (x4 - 2 + dim[3]) % dim[3];
 
+       int full_index = (x4*dim[2]*dim[1]*dim[0] + x3*dim[1]*dim[0] + x2*dim[0] + x1)>>1;
+       if(odd_bit){ full_index += volume/2; }
 
-      for(int dir=0; dir<4; ++dir){
-        char* dst_ptr = (char*)dst[dir];
-        memcpy(dst_ptr + i*matrix_size, (char*)src + (full_index*4 + dir)*matrix_size, matrix_size);
-      } // end loop over directions
-    } // loop over the extended volume
-
-
-
-
-
-    // see if it makes a difference
+       for(int dir=0; dir<4; ++dir){
+       char* dst_ptr = (char*)dst[dir];
+       memcpy(dst_ptr + i*matrix_size, (char*)src + (full_index*4 + dir)*matrix_size, matrix_size);
+       } // end loop over directions
+       } // loop over the extended volume
+       */
     return;
   } // assignExtendedQDPGaugeField
 

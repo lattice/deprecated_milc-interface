@@ -51,6 +51,9 @@ namespace milc_interface {
     invertParam->tune = QUDA_TUNE_YES;
     invertParam->gflops = 0.0;
 
+    invertParam->input_location = QUDA_CPU_FIELD_LOCATION;
+    invertParam->output_location = QUDA_CPU_FIELD_LOCATION;
+
 
     if(parity == QUDA_EVEN_PARITY){ // even parity
       invertParam->matpc_type = QUDA_MATPC_EVEN_EVEN;
@@ -128,6 +131,7 @@ namespace milc_interface {
       QudaPrecision cuda_prec,
       QudaPrecision cuda_prec_sloppy,
       QudaPrecision cuda_prec_precondition,
+      const double tadpole,
       QudaGaugeParam *gaugeParam)   
   {
 
@@ -143,11 +147,12 @@ namespace milc_interface {
 
     gaugeParam->gauge_fix = QUDA_GAUGE_FIXED_NO;
     gaugeParam->anisotropy = 1.0;
-    gaugeParam->tadpole_coeff = 1.0;
+    gaugeParam->tadpole_coeff = tadpole;
     gaugeParam->t_boundary = QUDA_PERIODIC_T; // anti-periodic boundary conditions are built into the gauge field
     gaugeParam->gauge_order = QUDA_MILC_GAUGE_ORDER; 
     gaugeParam->ga_pad = dim[0]*dim[1]*dim[2]/2;
-
+    gaugeParam->scale = -1.0/(24.0*gaugeParam->tadpole_coeff*gaugeParam->tadpole_coeff);
+    
 
     // preconditioning...
     gaugeParam->cuda_prec_precondition = cuda_prec_precondition;

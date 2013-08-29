@@ -53,7 +53,7 @@ extern "C" {
   void qudaHisqParamsInit(QudaHisqParams_t hisq_params);
 
 
-  void qudaLoadFatLink(int precision, QudaFatLinkArgs_t fatlink_args, const double act_path_coeff[6], void* inlink, void* outlink);
+  void qudaLoadKSLink(int precision, QudaFatLinkArgs_t fatlink_args, const double act_path_coeff[6], void* inlink, void* fatlink, void* longlink);
 
 
   void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const double path_coeff[6], void* inlink, void* fatlink, void* ulink);
@@ -67,6 +67,7 @@ extern "C" {
       double target_relresid,
       const void* const milc_fatlink,
       const void* const milc_longlink,
+      const double tadpole,
       void* source,
       void* solution,
       double* const final_resid,
@@ -103,6 +104,7 @@ extern "C" {
       const double* target_relative_residual,
       const void* const milc_fatlink,
       const void* const milc_longlink,
+      const double tadpole,
       void* source,
       void** solutionArray, 
       double* const final_residual,
@@ -138,6 +140,15 @@ extern "C" {
       const void* const w_link,
       const void* const v_link,
       const void* const u_link,
+      void* const milc_momentum);
+
+
+  void qudaAsqtadForce(
+      int precision,
+      const double act_path_coeff[6],
+      const void* const one_link_src[4],
+      const void* const naik_src[4],
+      const void* const link,
       void* const milc_momentum);
 
 

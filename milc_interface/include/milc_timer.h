@@ -27,6 +27,7 @@ class Timer{
     bool _mute;
 
 };
+  
 
 } // namespace milc_interface
 

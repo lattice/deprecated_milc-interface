@@ -143,7 +143,9 @@ void qudaGaugeForce( int precision,
 {
   using namespace milc_interface;
 
-  Timer timer("qudaGaugeForce");
+  milc_interface::Timer timer("qudaGaugeForce");
+  
+ 
 #ifndef TIME_INTERFACE
   timer.mute();
 #endif
@@ -438,9 +440,12 @@ void qudaGaugeForce( int precision,
 
   for(int dir=0; dir<4; ++dir){ free(extended_link[dir]); }
 #else
+
+
   computeGaugeForceQuda(milc_momentum, milc_sitelink,  input_path_buf, length,
 			loop_coeff_ptr, num_paths, max_length, eb3,
 			&qudaGaugeParam, timeinfo);
+
 #endif  
   for(int dir = 0; dir < 4; dir++){
     for(int i=0;i < num_paths; i++){

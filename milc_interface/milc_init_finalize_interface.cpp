@@ -4,7 +4,10 @@
 #include <iostream>
 #include <iomanip>
 #include "external_headers/quda_milc_interface.h"
+#include <quda_internal.h>
 
+
+//extern TimeProfile profileAsqtadForceInterface;
 
 void qudaInit(QudaInitArgs_t input)
 {
@@ -76,6 +79,13 @@ void qudaSetLayout(QudaLayout_t input)
 void qudaFinalize()
 {
   endQuda();
+
+  extern quda::TimeProfile profileAsqtadForceInterface;
+
+  if(getVerbosity() >= QUDA_SUMMARIZE){
+    profileAsqtadForceInterface.Print();
+  }
+
   return;
 }
 
