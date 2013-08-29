@@ -888,7 +888,6 @@ asqtadForceStartup(const int dim[4], QudaPrecision precision,
   param.create = QUDA_NULL_FIELD_CREATE;
   param.anisotropy = 1.0;
 
-
   param.link_type = QUDA_SU3_LINKS;
   param.reconstruct = QUDA_RECONSTRUCT_NO;
   // allocate memory for the host arrays
@@ -965,7 +964,8 @@ qudaAsqtadForce(
   profileAsqtadForceInterface.Start(QUDA_PROFILE_INIT);
   Layout layout;
   QudaPrecision local_precision = (precision==1) ? QUDA_SINGLE_PRECISION : QUDA_DOUBLE_PRECISION;
-  asqtadForceStartup(layout.getLocalDim(), local_precision, one_link_src, naik_src, link, milc_momentum); // Need to look at this
+  asqtadForceStartup(layout.getLocalDim(), local_precision, one_link_src, 
+		     naik_src, link, milc_momentum); // Need to look at this
   profileAsqtadForceInterface.Stop(QUDA_PROFILE_INIT);
 
 #define QUDA_VER ((10000*QUDA_VERSION_MAJOR) + (100*QUDA_VERSION_MINOR) + QUDA_VERSION_SUBMINOR)

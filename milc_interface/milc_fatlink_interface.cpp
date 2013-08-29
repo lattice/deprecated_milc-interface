@@ -23,6 +23,8 @@ static TimeProfile profileFatLinkInterface("fatlinkInterface");
 
 namespace milc_interface {
 
+  void invalidateGaugeQuda();
+
   void copyGaugeField(int volume, QudaPrecision prec, void* src, void* dst)
   {
     const int realSize = getRealSize(prec);
@@ -53,7 +55,8 @@ namespace milc_interface {
 
 
 
-void qudaLoadKSLink(int precision, QudaFatLinkArgs_t fatlink_args, const double act_path_coeff[6], void* inlink, void* fatlink, void* longlink)
+void qudaLoadKSLink(int precision, QudaFatLinkArgs_t fatlink_args, 
+		    const double act_path_coeff[6], void* inlink, void* fatlink, void* longlink)
 {
   using namespace milc_interface;
 
@@ -154,6 +157,9 @@ void qudaLoadKSLink(int precision, QudaFatLinkArgs_t fatlink_args, const double 
     }     
   }
 #endif
+
+  // require loadGaugeQuda to be called with subsequent solve
+  milc_interface::invalidateGaugeQuda();
 
   return;
 }
