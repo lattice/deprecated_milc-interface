@@ -40,7 +40,8 @@ endif
 ifeq ($(strip $(BUILD_GAUGE_FORCE)), yes)
 	TEST_HDRS += ../tests/gauge_force_reference.h
 	TEST_OBJS += ../tests/gauge_force_reference.o
-	INTERFACE_OBJS += milc_gforce_interface.o
+	INTERFACE_OBJS += milc_gforce_interface.o 
+	INTERFACE_OBJS += milc_update_interface.o
 endif
 
 
