@@ -864,6 +864,7 @@ qudaHisqForce(
   return;
 }
 
+#endif
 
 static void
 asqtadForceStartup(const int dim[4], QudaPrecision precision, 
@@ -889,7 +890,7 @@ asqtadForceStartup(const int dim[4], QudaPrecision precision,
   param.reconstruct = QUDA_RECONSTRUCT_10;
   param.order = QUDA_MILC_GAUGE_ORDER;
   param.link_type = QUDA_ASQTAD_MOM_LINKS;
-  param.gauge = momentum;
+  param.gauge = milc_momentum;
 
   cpuMom = new cpuGaugeField(param);
 
@@ -897,11 +898,12 @@ asqtadForceStartup(const int dim[4], QudaPrecision precision,
   param.create = QUDA_NULL_FIELD_CREATE;
   param.order = QUDA_FLOAT2_GAUGE_ORDER;
 
-  cudaMom_ex = new cudaGaugeField(param);
-
+  cudaMom = new cudaGaugeField(param);
   GaugeFieldParam paramEx(0, gaugeParam);
-  for(int dir=0; dir<4; ++dir) paramEx.X[dir] = param.X[dir] + 4;
+  for(int dir=0; dir<4; ++dir) paramEx.x[dir] = param.x[dir] + 4;
 
+
+  paramEx.create = QUDA_NULL_FIELD_CREATE;
   cpuInForce_ex = new cpuGaugeField(paramEx);
 
   paramEx.order = QUDA_FLOAT2_GAUGE_ORDER;
@@ -910,12 +912,13 @@ asqtadForceStartup(const int dim[4], QudaPrecision precision,
 
   // input gauge field
   paramEx.order = QUDA_QDP_GAUGE_ORDER; 
-  paramEx.type = QUDA_SU3_LINKS;
+  paramEx.link_type = QUDA_SU3_LINKS;
 
   cpuGauge_ex = new cpuGaugeField(paramEx);
 
   paramEx.order = QUDA_FLOAT2_GAUGE_ORDER;
   cudaGauge_ex = new cudaGaugeField(paramEx);
+
 #else
 
   for(int dir=0; dir<4; ++dir){
@@ -1006,7 +1009,6 @@ qudaAsqtadForce(
   using namespace milc_interface;
 
   using namespace quda::fermion_force;
-
   profileAsqtadForceInterface.Start(QUDA_PROFILE_TOTAL);
 
   profileAsqtadForceInterface.Start(QUDA_PROFILE_INIT);
@@ -1041,8 +1043,7 @@ qudaAsqtadForce(
   // load one-link outer product
   extendQDPGaugeField(gaugeParam.X, local_precision, one_link_src, (void**)cpuInForce_ex->Gauge_p());
   exchange_cpu_sitelink_ex(gaugeParam.X, R, (void**)cpuInForce_ex->Gauge_p(), cpuInForce_ex->Order(), local_precision, 0);
-  loadLinkToGPU_ex(cudaInForce_ex, cpuInForce);
-
+  loadLinkToGPU_ex(cudaInForce_ex, cpuInForce_ex);
 #else
   cudaGauge->loadCPUField(*cpuGauge, QUDA_CPU_FIELD_LOCATION);
   cudaInForce->loadCPUField(*cpuOneLinkInForce, QUDA_CPU_FIELD_LOCATION);
@@ -1050,7 +1051,7 @@ qudaAsqtadForce(
   profileAsqtadForceInterface.Stop(QUDA_PROFILE_H2D);
 
 #ifdef MULTI_GPU
-  cudaMemset((void**)(cudaOutForce_ex->Gauge_p()), 0, cudaOutForce->Bytes());
+  cudaMemset((void**)(cudaOutForce_ex->Gauge_p()), 0, cudaOutForce_ex->Bytes());
 #else
   cudaMemset((void**)(cudaOutForce->Gauge_p()), 0, cudaOutForce->Bytes());
 #endif
@@ -1098,4 +1099,3 @@ qudaAsqtadForce(
 
 
 
-#endif
