@@ -91,7 +91,6 @@ void qudaLoadKSLink(int precision, QudaFatLinkArgs_t fatlink_args,
     double dtime = -((long)clock()/CLOCKS_PER_SEC);
     assignExtendedQDPGaugeField(local_dim, prec, inlink, local_inlink);
     dtime += ((long)clock()/CLOCKS_PER_SEC);
-    printfQuda("Time to assign QDP field: %lf\n", dtime);
   }
 #else
   void* local_inlink = inlink;
