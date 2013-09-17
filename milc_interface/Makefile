@@ -35,6 +35,7 @@ endif
 
 ifeq ($(strip $(BUILD_HISQ_FORCE)), yes)
 	INTERFACE_OBJS += milc_fforce_interface.o
+	INTERFACE_OBJS += milc_oprod_interface.o
 endif
 
 ifeq ($(strip $(BUILD_GAUGE_FORCE)), yes)

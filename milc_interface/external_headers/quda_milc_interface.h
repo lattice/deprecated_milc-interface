@@ -168,6 +168,12 @@ extern "C" {
       void* const one_link_src[4], 
       void* const three_link_src[4]);
 
+  void qudaComputeOprod(int precision,
+                        int dim[4],
+                        int displacement,
+                        double coeff,
+                        void* quark_field,
+                        void* oprod);
 
 
   void qudaUpdateU(int precision, 
@@ -175,6 +181,7 @@ extern "C" {
                    double eps,
                    void* momentum, 
                    void* link);
+
 
 
 
