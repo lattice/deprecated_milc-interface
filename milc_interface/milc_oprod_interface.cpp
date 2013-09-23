@@ -1,13 +1,17 @@
 #include <cstdlib>
 #include <cstdio>
 #include <quda.h>
+#include <dslash_quda.h>
+
 #include "include/milc_utilities.h"
 
 #include "external_headers/quda_milc_interface.h"
 
-void qudaComputeOprod(int prec, int dim[4], int displacement, double coeff, 
-                                            void* quark_field, void* oprod)
+void qudaComputeOprod(int prec, int num_terms, double** coeff, 
+                                            void** quark_field, void* oprod[2])
 {
+  using namespace quda;
+  using namespace milc_interface;
   int dir;
   QudaGaugeParam oprodParam = newQudaGaugeParam();
 
@@ -23,9 +27,17 @@ void qudaComputeOprod(int prec, int dim[4], int displacement, double coeff,
   oprodParam.gauge_order = QUDA_QDP_GAUGE_ORDER;
   oprodParam.t_boundary = QUDA_PERIODIC_T;
 
-  for(dir=0; dir<4; ++dir) oprodParam.X[dir] = dim[dir];
+  Layout layout;
+  const int* local_dim = layout.getLocalDim();
 
-  computeStaggeredOprodQuda(oprod, quark_field, displacement, coeff, param); 
-  
+  for(dir=0; dir<4; ++dir){ 
+    oprodParam.X[dir] = local_dim[dir];
+  }
+
+  computeStaggeredOprodQuda(oprod, quark_field, num_terms, coeff, &oprodParam); 
+
+  cudaDeviceSynchronize(); 
+
+
   return;
 }
