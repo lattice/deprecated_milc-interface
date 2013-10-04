@@ -8,10 +8,11 @@
 #include "external_headers/quda_milc_interface.h"
 
 
-void  qudaUpdateU(int prec, int dim[4], double eps, void* momentum, void* link)
+void  qudaUpdateU(int prec, double eps, void* momentum, void* link)
 {
 
   using namespace quda;
+  using namespace milc_interface;
 
   QudaGaugeParam gaugeParam = newQudaGaugeParam();
 
@@ -27,7 +28,10 @@ void  qudaUpdateU(int prec, int dim[4], double eps, void* momentum, void* link)
   gaugeParam.gauge_order = QUDA_MILC_GAUGE_ORDER;
   gaugeParam.t_boundary = QUDA_PERIODIC_T;
 
-  for(int dir=0; dir<4; ++dir) gaugeParam.X[dir] = dim[dir];
+  Layout layout;
+  const int* local_dim = layout.getLocalDim();
+
+  for(int dir=0; dir<4; ++dir) gaugeParam.X[dir] = local_dim[dir];
 
   updateGaugeFieldQuda(link, momentum, eps, &gaugeParam); 
 

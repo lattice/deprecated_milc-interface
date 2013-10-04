@@ -146,8 +146,9 @@ allocateMomentum(const int dim[4], QudaPrecision precision)
   //memset(cpuMom->Gauge_p(), 0, cpuMom->Bytes());
   param.order  = QUDA_QDP_GAUGE_ORDER;
 
+  param.link_type = QUDA_ASQTAD_MOM_LINKS;
   param.precision = forceParam.cuda_prec;
-  param.order  = QUDA_MILC_GAUGE_ORDER;
+  param.order  = QUDA_FLOAT2_GAUGE_ORDER;
   param.reconstruct = QUDA_RECONSTRUCT_10;
   cudaMom = new cudaGaugeField(param);
   cudaMemset((void**)(cudaMom->Gauge_p()), 0, cudaMom->Bytes());
@@ -225,7 +226,7 @@ hisqForceStartup(const int dim[4], QudaPrecision precision, void *milc_momentum)
   cpuOutForce_ex = new cpuGaugeField(param_ex);
   // MOMENTUM
   param.order  = QUDA_MILC_GAUGE_ORDER;
-  
+  param.link_type = QUDA_ASQTAD_MOM_LINKS;
   param.reconstruct = QUDA_RECONSTRUCT_10;
   param.create = QUDA_REFERENCE_FIELD_CREATE;
   param.gauge = milc_momentum;
@@ -233,6 +234,7 @@ hisqForceStartup(const int dim[4], QudaPrecision precision, void *milc_momentum)
   cpuMom = new cpuGaugeField(param);
   memset(cpuMom->Gauge_p(), 0, cpuMom->Bytes());
 
+  param.link_type = QUDA_GENERAL_LINKS;
   param.create = QUDA_NULL_FIELD_CREATE;
   param.order  = QUDA_QDP_GAUGE_ORDER;
 
@@ -245,6 +247,8 @@ hisqForceStartup(const int dim[4], QudaPrecision precision, void *milc_momentum)
 
   param_ex.precision = gaugeParam_ex.cuda_prec;
   param_ex.reconstruct = QUDA_RECONSTRUCT_NO;
+  param_ex.order = QUDA_FLOAT2_GAUGE_ORDER;
+
   cudaGauge_ex = new cudaGaugeField(param_ex);
   // STANDARD
   param.precision = forceParam.cuda_prec;
@@ -338,9 +342,8 @@ hisqForceEnd()
   if(cudaGauge_ex)     { delete cudaGauge_ex;      cudaGauge_ex = NULL; }
   if(cudaInForce_ex)  {  delete cudaInForce_ex;    cudaInForce_ex = NULL;}
   if(cudaOutForce_ex) {  delete cudaOutForce_ex;   cudaOutForce_ex = NULL;}
-  
   if(cpuInForce_ex)   { delete cpuInForce_ex;      cpuInForce_ex = NULL;} 
-  if(cpuOutForce_ex)  { delete cpuOutForce_ex;     cpuOutForce_ex = NULL;}
+//  if(cpuOutForce_ex)  { delete cpuOutForce_ex;     cpuOutForce_ex = NULL;}
   if(cpuGauge_ex)     { delete cpuGauge_ex;        cpuGauge_ex = NULL;}
 #else
   if(cudaInForce)  { delete cudaInForce;  cudaInForce = NULL;}
@@ -679,7 +682,6 @@ qudaHisqForce(
   // Done with cudaInForce. It becomes the output force. Oops!
   int num_failures = 0;
   int* num_failures_dev;
-
   if(cudaMalloc((void**)&num_failures_dev, sizeof(int)) == cudaErrorMemoryAllocation){
     errorQuda("cudaMalloc failed for num_failures_dev\n");
   }
@@ -730,7 +732,6 @@ qudaHisqForce(
 
   allocateMomentum(layout.getLocalDim(), local_precision);
 
-
   // Close the paths, make anti-hermitian, and store in compressed format
   hisqCompleteForceCuda(gaugeParam, *cudaOutForce_ex, *cudaGaugeComp_ex, cudaMom);
 #ifdef TIME_INTERFACE
@@ -738,10 +739,11 @@ qudaHisqForce(
   timer.check("hisqCompleteForceCuda");
 #endif
   cudaMom->saveCPUField(*cpuMom, QUDA_CPU_FIELD_LOCATION);
+
   //memcpy(milc_momentum, cpuMom->Gauge_p(), cpuMom->Bytes());
 
   hisqForceEnd();
-
+//  if(cpuOutForce_ex) { delete cpuOutForce_ex; cpuOutForce_ex = NULL; }
   return;
 }
 

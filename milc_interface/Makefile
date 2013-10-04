@@ -15,6 +15,7 @@ INTERFACE_OBJS = milc_init_finalize_interface.o milc_utilities.o milc_timer.o
 
 ifeq ($(strip $(BUILD_STAGGERED_DIRAC)),yes)
 	INTERFACE_OBJS += milc_staggered_inverter_interface.o milc_inverter_utilities.o
+	INTERFACE_OBJS += milc_oprod_interface.o
 endif
 
 ifeq ($(strip $(BUILD_PRECON_STAGGERED_DIRAC)),yes)
