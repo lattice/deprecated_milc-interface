@@ -34,7 +34,9 @@ void qudaComputeOprod(int prec, int num_terms, double** coeff,
     oprodParam.X[dir] = local_dim[dir];
   }
 
+#if 0
   computeStaggeredOprodQuda(oprod, quark_field, num_terms, coeff, &oprodParam); 
+#endif
 
   cudaDeviceSynchronize(); 
 
