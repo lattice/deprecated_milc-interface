@@ -83,7 +83,9 @@ void qudaFinalize()
   extern quda::TimeProfile profileAsqtadForceInterface;
 
   if(getVerbosity() >= QUDA_SUMMARIZE){
+#if BUILD_HISQ_FORCE
     profileAsqtadForceInterface.Print();
+#endif
   }
 
   return;
