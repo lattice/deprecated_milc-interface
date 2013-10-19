@@ -430,33 +430,10 @@ void qudaGaugeForce( int precision,
   double timeinfo[3];
   memset(milc_momentum, 0, 4*V*10*qudaGaugeParam.cpu_prec);
 
-#ifdef MULTI_GPU
-  void* extended_link[4]; // extended field to hold the input sitelinks
-  int extended_dim[4];
-  for(int dir=0; dir<4; ++dir){ extended_dim[dir] = dim[dir]+4; }
-  const int extended_volume = getVolume(extended_dim);
-
-  for(int dir=0; dir<4; ++dir){
-    allocateColorField(extended_volume,cpu_precision,false,extended_link[dir]);
-  } 
-  assignExtendedQDPGaugeField(dim, cpu_precision, milc_sitelink, extended_link);
-  int R[4] = {2, 2, 2, 2};
-  exchange_cpu_sitelink_ex(qudaGaugeParam.X, R, extended_link,
-      QUDA_QDP_GAUGE_ORDER, qudaGaugeParam.cpu_prec, 0);
-
-  computeGaugeForceQuda(milc_momentum, extended_link,  input_path_buf, length,
-      loop_coeff_ptr, num_paths, max_length, eb3,
-      &qudaGaugeParam, timeinfo);
-
-  for(int dir=0; dir<4; ++dir){ free(extended_link[dir]); }
-#else
-
-
   computeGaugeForceQuda(milc_momentum, milc_sitelink,  input_path_buf, length,
       loop_coeff_ptr, num_paths, max_length, eb3,
       &qudaGaugeParam, timeinfo);
 
-#endif  
   for(int dir = 0; dir < 4; dir++){
     for(int i=0;i < num_paths; i++){
       free(input_path_buf[dir][i]);
