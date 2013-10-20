@@ -197,7 +197,7 @@ extern "C" {
                    void* link);
 
 
-
+  void qudaCloverDerivative(void* out, void* gauge, void* oprod, int precision, int parity);
 
 
 #ifdef __cplusplus

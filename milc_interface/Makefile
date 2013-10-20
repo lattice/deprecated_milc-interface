@@ -11,7 +11,7 @@ TEST_OBJS = ../tests/test_util.o ../tests/staggered_dslash_reference.o ../tests/
 LOCAL_HDRS = include/milc_utilities.h include/milc_timer.h include/milc_inverter_utilities.h
 EXTERNAL_HDR = external_headers/quda_milc_interface.h
 
-INTERFACE_OBJS = milc_init_finalize_interface.o milc_utilities.o milc_timer.o
+INTERFACE_OBJS = milc_init_finalize_interface.o milc_utilities.o milc_timer.o milc_clover_interface.o
 
 ifeq ($(strip $(BUILD_STAGGERED_DIRAC)),yes)
 	INTERFACE_OBJS += milc_staggered_inverter_interface.o milc_inverter_utilities.o
