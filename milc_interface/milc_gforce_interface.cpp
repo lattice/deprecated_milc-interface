@@ -120,11 +120,7 @@ namespace milc_interface {
       gaugeParam->cuda_prec = cuda_prec;
       gaugeParam->reconstruct = link_recon;
       gaugeParam->type = QUDA_SU3_LINKS;
-#ifdef MULTI_GPU // use the QDP ordering scheme for the internal host fields
-      gaugeParam->gauge_order = QUDA_QDP_GAUGE_ORDER;
-#else
       gaugeParam->gauge_order = QUDA_MILC_GAUGE_ORDER;
-#endif
       gaugeParam->anisotropy = 1.0;
       gaugeParam->tadpole_coeff = 1.0;
       gaugeParam->gauge_fix     = QUDA_GAUGE_FIXED_NO;
@@ -397,7 +393,12 @@ void qudaGaugeForce( int precision,
 
   const int max_length = 6;
 
-  int num_paths =48;
+  // default is 3-term gauge action
+  int num_paths;
+  if (num_loop_types == 1) num_paths = 6;
+  else if (num_loop_types == 2) num_paths = 18;
+  else num_paths = 48;
+
   int** input_path_buf[4];
   for(int dir =0; dir < 4; dir++){
     input_path_buf[dir] = (int**)malloc(num_paths*sizeof(int*));
@@ -431,8 +432,8 @@ void qudaGaugeForce( int precision,
   memset(milc_momentum, 0, 4*V*10*qudaGaugeParam.cpu_prec);
 
   computeGaugeForceQuda(milc_momentum, milc_sitelink,  input_path_buf, length,
-      loop_coeff_ptr, num_paths, max_length, eb3,
-      &qudaGaugeParam, timeinfo);
+  			loop_coeff_ptr, num_paths, max_length, eb3, 
+  			&qudaGaugeParam, timeinfo);
 
   for(int dir = 0; dir < 4; dir++){
     for(int i=0;i < num_paths; i++){
