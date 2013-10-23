@@ -2,6 +2,7 @@
 #define _QUDA_MILC_INTERFACE_H
 
 #include <enum_quda.h>
+#include <quda.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -216,8 +217,13 @@ extern "C" {
                    void* link);
 
 
+  void qudaCloverDerivative(void* out, void* gauge, void* oprod, 
+                            int mu, int nu, int precision, int parity, int conjugate);
 
 
+  void* qudaCreateExtendedGaugeField(void* gauge, int geometry, int precision);
+
+  void qudaDestroyGaugeField(void* gauge);
 
 #ifdef __cplusplus
 }
