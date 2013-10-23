@@ -396,7 +396,7 @@ void qudaGaugeForce( int precision,
   // default is 3-term gauge action
   int num_paths;
   if (num_loop_types == 1) num_paths = 6;
-  else if (num_loop_types == 2) num_paths = 18;
+  else if (num_loop_types == 2) num_paths = 24;
   else num_paths = 48;
 
   int** input_path_buf[4];
