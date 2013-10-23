@@ -146,6 +146,25 @@ extern "C" {
       int* num_iters
       );
 
+  void qudaCloverMultishiftMDInvert(int external_precision, 
+      int quda_precision,
+      int num_offsets,
+      double* const offset,
+      double kappa,
+      QudaInvertArgs_t inv_args,
+      const double* target_residual,
+      const void* milc_link,
+      void* milc_clover, 
+      void* milc_clover_inv,
+      void* source,
+      void** psiEven,
+      void** psiOdd,
+      void** pEven,
+      void** pOdd,
+      double* const final_residual, 
+      int* num_iters
+      );
+
   void qudaHisqForce(
       int precision,
       const double level2_coeff[6],
