@@ -183,6 +183,68 @@ void setInvertParam(QudaInvertParam &invertParam, QudaInvertArgs_t &inv_args,
 
 }
 
+void qudaLoadGaugeField(int external_precision, 
+			int quda_precision,
+			QudaInvertArgs_t inv_args,
+			const void* milc_link) {
+  using namespace milc_interface;
+
+  Layout layout;
+  const int* local_dim = layout.getLocalDim();
+  setDims(const_cast<int*>(local_dim));
+
+  QudaGaugeParam gaugeParam = newQudaGaugeParam();
+  setGaugeParam(gaugeParam, inv_args, external_precision, quda_precision);
+
+  loadGaugeQuda(const_cast<void*>(milc_link), &gaugeParam);
+} // qudaLoadGaugeField
+
+void qudaFreeGaugeField() {
+  freeGaugeQuda();
+} // qudaFreeGaugeField
+
+static int clover_alloc = 0;
+
+void qudaLoadCloverField(int external_precision, 
+			 int quda_precision,
+			 QudaInvertArgs_t inv_args,
+			 void* milc_clover, 
+			 void* milc_clover_inv,
+			 QudaSolutionType solution_type,
+			 QudaSolveType solve_type,
+			 int compute_trlog,
+			 double *trlog) {
+
+  using namespace milc_interface;
+
+  QudaInvertParam invertParam = newQudaInvertParam();
+  setInvertParam(invertParam, inv_args, external_precision, quda_precision, 0.0);
+  invertParam.solution_type = solution_type;
+  invertParam.solve_type = solve_type;
+  invertParam.matpc_type = QUDA_MATPC_EVEN_EVEN_ASYMMETRIC;
+  invertParam.compute_clover_trlog = compute_trlog;
+  if(invertParam.dslash_type == QUDA_CLOVER_WILSON_DSLASH) {
+    if (clover_alloc == 0) {
+      loadCloverQuda(milc_clover, milc_clover_inv, &invertParam);
+      clover_alloc = 1;
+    } else {
+      errorQuda("Clover term already allocated");
+    }
+  }
+
+  trlog[0] = invertParam.trlogA[0];
+  trlog[1] = invertParam.trlogA[1];
+} // qudaLoadCoverField
+
+void qudaFreeCloverField() {
+  if (clover_alloc==1) {
+    freeCloverQuda();
+    clover_alloc = 0;
+  } else {
+    errorQuda("Trying to free non-allocated clover term");
+  }
+} // qudaFreeCloverField
+
 
 void qudaCloverInvert(int external_precision, 
 		      int quda_precision,
@@ -209,14 +271,9 @@ void qudaCloverInvert(int external_precision,
     exit(1);
   }
   
-  Layout layout;
-  const int* local_dim = layout.getLocalDim();
-  setDims(const_cast<int*>(local_dim));
-
-  QudaGaugeParam gaugeParam   = newQudaGaugeParam();
-  setGaugeParam(gaugeParam, inv_args, external_precision, quda_precision);
-
-  loadGaugeQuda(const_cast<void*>(link), &gaugeParam);
+  qudaLoadGaugeField(external_precision, quda_precision, inv_args, link);
+  qudaLoadCloverField(external_precision, quda_precision, inv_args, clover, cloverInverse,
+		      QUDA_MAT_SOLUTION, QUDA_DIRECT_PC_SOLVE, 0, 0);
 
   QudaInvertParam invertParam = newQudaInvertParam();
   setInvertParam(invertParam, inv_args, external_precision, quda_precision, kappa);
@@ -229,16 +286,13 @@ void qudaCloverInvert(int external_precision,
   invertParam.inv_type           = QUDA_BICGSTAB_INVERTER;
   invertParam.matpc_type         = QUDA_MATPC_ODD_ODD;
 
-  if(invertParam.dslash_type == QUDA_CLOVER_WILSON_DSLASH) loadCloverQuda(clover,cloverInverse, &invertParam);
-
   invertQuda(solution, source, &invertParam); 
   *num_iters = invertParam.iter;
   *final_residual = invertParam.true_res;
   *final_fermilab_residual = invertParam.true_res_hq;
   
-  freeGaugeQuda();
-
-  if(invertParam.dslash_type == QUDA_CLOVER_WILSON_DSLASH) freeCloverQuda();
+  qudaFreeGaugeField();
+  qudaFreeCloverField();
   
   return;
 } // qudaCloverInvert
@@ -268,15 +322,6 @@ void qudaCloverMultishiftInvert(int external_precision,
     }
   }
 
-  Layout layout;
-  const int* local_dim = layout.getLocalDim();
-  setDims(const_cast<int*>(local_dim));
-
-  QudaGaugeParam gaugeParam   = newQudaGaugeParam();
-  setGaugeParam(gaugeParam, inv_args, external_precision, quda_precision);
-
-  loadGaugeQuda(const_cast<void*>(milc_link), &gaugeParam);
-
   QudaInvertParam invertParam = newQudaInvertParam();
   setInvertParam(invertParam, inv_args, external_precision, quda_precision, kappa);
   invertParam.residual_type = QUDA_L2_RELATIVE_RESIDUAL;
@@ -293,19 +338,12 @@ void qudaCloverMultishiftInvert(int external_precision,
   invertParam.inv_type           = QUDA_CG_INVERTER;
   invertParam.matpc_type         = QUDA_MATPC_EVEN_EVEN_ASYMMETRIC;
 
-  if(invertParam.dslash_type == QUDA_CLOVER_WILSON_DSLASH) 
-    loadCloverQuda(milc_clover, milc_clover_inv, &invertParam);
-
   invertMultiShiftQuda(solutionArray, source, &invertParam); 
   
   // return the number of iterations taken by the inverter
   *num_iters = invertParam.iter;
   for(int i=0; i<num_offsets; ++i) final_residual[i] = invertParam.true_res_offset[i];
 
-  freeGaugeQuda();
-
-  if(invertParam.dslash_type == QUDA_CLOVER_WILSON_DSLASH) freeCloverQuda();
-  
   return;
 } // qudaCloverMultishiftInvert
 
@@ -336,15 +374,6 @@ void qudaCloverMultishiftMDInvert(int external_precision,
     }
   }
 
-  Layout layout;
-  const int* local_dim = layout.getLocalDim();
-  setDims(const_cast<int*>(local_dim));
-
-  QudaGaugeParam gaugeParam   = newQudaGaugeParam();
-  setGaugeParam(gaugeParam, inv_args, external_precision, quda_precision);
-
-  loadGaugeQuda(const_cast<void*>(milc_link), &gaugeParam);
-
   QudaInvertParam invertParam = newQudaInvertParam();
   setInvertParam(invertParam, inv_args, external_precision, quda_precision, kappa);
   invertParam.residual_type = QUDA_L2_RELATIVE_RESIDUAL;
@@ -361,19 +390,12 @@ void qudaCloverMultishiftMDInvert(int external_precision,
   invertParam.inv_type           = QUDA_CG_INVERTER;
   invertParam.matpc_type         = QUDA_MATPC_EVEN_EVEN_ASYMMETRIC;
 
-  if(invertParam.dslash_type == QUDA_CLOVER_WILSON_DSLASH) 
-    loadCloverQuda(milc_clover, milc_clover_inv, &invertParam);
-
   invertMultiShiftMDQuda(psiEven, psiOdd, pEven, pOdd, source, &invertParam); 
   
   // return the number of iterations taken by the inverter
   *num_iters = invertParam.iter;
   for(int i=0; i<num_offsets; ++i) final_residual[i] = invertParam.true_res_offset[i];
 
-  freeGaugeQuda();
-
-  if(invertParam.dslash_type == QUDA_CLOVER_WILSON_DSLASH) freeCloverQuda();
-  
   return;
 } // qudaCloverMultishiftMDInvert
 

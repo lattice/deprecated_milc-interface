@@ -130,6 +130,24 @@ extern "C" {
       int* num_iters
       );
 
+  void qudaLoadGaugeField(int external_precision, 
+			  int quda_precision,
+			  QudaInvertArgs_t inv_args,
+			  const void* milc_link) ;
+
+  void qudaFreeGaugeField();
+
+  void qudaLoadCloverField(int external_precision, 
+			   int quda_precision,
+			   QudaInvertArgs_t inv_args,
+			   void* milc_clover, 
+			   void* milc_clover_inv,
+			   QudaSolutionType solution_type,
+			   QudaSolveType solve_type,
+			   int compute_trlog,
+			   double *trlog) ;
+
+  void qudaFreeCloverField();
 
   void qudaCloverMultishiftInvert(int external_precision, 
       int quda_precision,
