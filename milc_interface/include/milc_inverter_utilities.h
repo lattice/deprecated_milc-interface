@@ -44,6 +44,7 @@ namespace milc_interface {
       QudaPrecision cuda_prec,
       QudaPrecision cuda_prec_sloppy,
       QudaPrecision cuda_prec_precondition,
+      const double tadpole,
       QudaGaugeParam *gaugeParam);
 
 

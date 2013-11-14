@@ -56,7 +56,7 @@ void
 print_mom(void *_a, int prec)
 {
   
-  int i, j;
+  int i;
   for(i=0;i < 5; i++){
     if(prec == QUDA_DOUBLE_PRECISION){
       double* a = (double*)_a;

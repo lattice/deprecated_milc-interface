@@ -11,31 +11,6 @@
 #include "external_headers/quda_milc_interface.h"
 #include "include/milc_timer.h"
 
-//******************************************************************//
-//
-//  Code to call the QUDA HISQ fermion-force routines from MILC.
-//  Unfortunately, there is some inconsistency between the single-GPU
-//  and multi-GPU code.
-//  On MILC's side, gauge-fields are stored in flat 1-D arrays 
-//  using site-major ordering. However, the outer products of the 
-//  pseudofermion fields (summed over quark masses and terms in the 
-//  rational approximations) are stored as two-dimensional arrays 
-//  using direction-major ordering (QDP ordering).
-//  On the QUDA side, fields are stored in 1-D arrays.
-//  
-//  QUDA's single-GPU build supports MILC ordering of the 
-//  gauge and outer-product fields, so, in serial mode, we copy 
-//  MILC's outer-product fields to flat MILC-ordered fields, 
-//  when passing the data. 
-//  On the other hand, only QDP-ordered fields are supported 
-//  in the multi-GPU build of QUDA. Therefore, when running in 
-//  parallel we pass the MILC gauge fields in QDP format, 
-//  and flatten the MILC outer-product fields.
-//  However, regardless of the ordering of the gauge fields 
-//  and the outer-product fields, 
-//  the momentum is always stored in MILC format.
-//
-//******************************************************************//
 
 
 using namespace quda;
@@ -133,18 +108,10 @@ allocateMomentum(const int dim[4], QudaPrecision precision)
 
   GaugeFieldParam param(0, gaugeParam);
   param.create = QUDA_NULL_FIELD_CREATE;
-  param.link_type = QUDA_GENERAL_LINKS; 
+  param.link_type = QUDA_ASQTAD_MOM_LINKS; 
   // allocate memory for the host arrays
-  param.precision = gaugeParam.cpu_prec;
-  param.reconstruct = QUDA_RECONSTRUCT_NO;
-  param.order  = QUDA_MILC_GAUGE_ORDER;
-  param.reconstruct = QUDA_RECONSTRUCT_10;
-  //cpuMom = new cpuGaugeField(param);
-  //memset(cpuMom->Gauge_p(), 0, cpuMom->Bytes());
-  param.order  = QUDA_QDP_GAUGE_ORDER;
-
   param.precision = forceParam.cuda_prec;
-  param.order  = QUDA_MILC_GAUGE_ORDER;
+  param.order  = QUDA_FLOAT2_GAUGE_ORDER;
   param.reconstruct = QUDA_RECONSTRUCT_10;
   cudaMom = new cudaGaugeField(param);
   cudaMemset((void**)(cudaMom->Gauge_p()), 0, cudaMom->Bytes());
@@ -199,7 +166,6 @@ hisqForceStartup(const int dim[4], QudaPrecision precision)
   param.link_type = QUDA_GENERAL_LINKS; 
   // allocate memory for the host arrays
   param.precision = gaugeParam.cpu_prec;
-  param.reconstruct = QUDA_RECONSTRUCT_NO;
 //  cpuGauge = new cpuGaugeField(param);
 
   // EXTENDED
@@ -213,8 +179,6 @@ hisqForceStartup(const int dim[4], QudaPrecision precision)
   // STANDARD
   param.precision = forceParam.cpu_prec;
   param.reconstruct = QUDA_RECONSTRUCT_NO;
-//  cpuInForce = new cpuGaugeField(param);
-//  cpuOutForce = new cpuGaugeField(param);
   // EXTENDED
   param_ex.precision = forceParam_ex.cpu_prec;
   param_ex.reconstruct = QUDA_RECONSTRUCT_NO;
@@ -222,19 +186,15 @@ hisqForceStartup(const int dim[4], QudaPrecision precision)
   cpuOutForce_ex = new cpuGaugeField(param_ex);
   // MOMENTUM
   param.order  = QUDA_MILC_GAUGE_ORDER;
-  
+  param.link_type = QUDA_ASQTAD_MOM_LINKS; 
+ 
   param.reconstruct = QUDA_RECONSTRUCT_10;
   cpuMom = new cpuGaugeField(param);
   memset(cpuMom->Gauge_p(), 0, cpuMom->Bytes());
   param.order  = QUDA_QDP_GAUGE_ORDER;
 
-  // STANDARD
-  // allocate memory for the device arrays
-  //  param.precision = gaugeParam.cuda_prec;
-  //param.reconstruct = QUDA_RECONSTRUCT_NO;
-  //cudaGauge = new cudaGaugeField(param); // used for init lattice constants 
-																			   // need to change this!!!
-
+  param_ex.ghostInit = false;
+  param_ex.order = QUDA_FLOAT2_GAUGE_ORDER;
   param_ex.precision = gaugeParam_ex.cuda_prec;
   param_ex.reconstruct = QUDA_RECONSTRUCT_NO;
   cudaGauge_ex = new cudaGaugeField(param_ex);
@@ -244,6 +204,7 @@ hisqForceStartup(const int dim[4], QudaPrecision precision)
   // EXTENDED
   param_ex.precision = forceParam_ex.cuda_prec;
   param_ex.reconstruct = QUDA_RECONSTRUCT_NO;
+
   cudaInForce_ex = new cudaGaugeField(param_ex);
   cudaMemset((void**)(cudaInForce_ex->Gauge_p()), 0, cudaInForce_ex->Bytes());
   cudaOutForce_ex = new cudaGaugeField(param_ex);
@@ -251,8 +212,6 @@ hisqForceStartup(const int dim[4], QudaPrecision precision)
   // MOMENTUM
   param.order  = QUDA_MILC_GAUGE_ORDER;
   param.reconstruct = QUDA_RECONSTRUCT_10;
-//  cudaMom = new cudaGaugeField(param);
-//  cudaMemset((void**)(cudaMom->Gauge_p()), 0, cudaMom->Bytes());
   return;
 }
 
@@ -269,9 +228,11 @@ hisqForceStartup(const int dim[4], QudaPrecision precision)
 
   gaugeParam.gauge_order = QUDA_MILC_GAUGE_ORDER;
 
+  gaugeParam.anisotropy = 1.0;
   gaugeParam.cpu_prec = gaugeParam.cuda_prec = precision;
   gaugeParam.reconstruct = QUDA_RECONSTRUCT_NO;
 
+  forceParam.anisotropy = 1.0;
   forceParam.cpu_prec = forceParam.cuda_prec = precision;
   forceParam.reconstruct = QUDA_RECONSTRUCT_NO;
 
@@ -281,19 +242,23 @@ hisqForceStartup(const int dim[4], QudaPrecision precision)
   // allocate memory for the host arrays
   param.precision = gaugeParam.cpu_prec;
   param.reconstruct = QUDA_RECONSTRUCT_NO;
+  param.link_type = QUDA_GENERAL_LINKS;
   cpuGauge = new cpuGaugeField(param);
 
   param.precision = forceParam.cpu_prec;
   param.reconstruct = QUDA_RECONSTRUCT_NO;
   cpuInForce = new cpuGaugeField(param);
   cpuOutForce = new cpuGaugeField(param);
+  param.link_type = QUDA_ASQTAD_MOM_LINKS;
   param.reconstruct = QUDA_RECONSTRUCT_10;
   cpuMom = new cpuGaugeField(param);
   memset(cpuMom->Gauge_p(), 0, cpuMom->Bytes());
 
   // allocate memory for the device arrays
-  param.precision = gaugeParam.cuda_prec;
+  param.link_type   = QUDA_GENERAL_LINKS;
+  param.precision   = gaugeParam.cuda_prec;
   param.reconstruct = QUDA_RECONSTRUCT_NO;
+  param.order       = QUDA_FLOAT2_GAUGE_ORDER;
   cudaGauge = new cudaGaugeField(param);
 
 
@@ -304,6 +269,7 @@ hisqForceStartup(const int dim[4], QudaPrecision precision)
   cudaOutForce = new cudaGaugeField(param);
   cudaMemset((void**)(cudaOutForce->Gauge_p()), 0, cudaOutForce->Bytes()); // In the future, I won't do this
   param.reconstruct = QUDA_RECONSTRUCT_10;
+  param.link_type = QUDA_ASQTAD_MOM_LINKS;
   cudaMom = new cudaGaugeField(param);
   cudaMemset((void**)(cudaMom->Gauge_p()), 0, cudaMom->Bytes());
 
@@ -643,6 +609,8 @@ qudaHisqForce(
   timer.check("hisqLongLinkForceCuda");
 #endif
 
+  printfQuda("cudOutForce_ex->GhostInit() = %d\n", cudaOutForce_ex->GhostInit());
+  fflush(stdout);
   // update borders - should I unitarise in the interior first and then update the border region?
   // It seems to me that will depend on how the inter-gpu communication is implemented.
   cudaOutForce_ex->saveCPUField(*cpuOutForce_ex, QUDA_CPU_FIELD_LOCATION);
@@ -687,7 +655,7 @@ qudaHisqForce(
   if(cudaGauge_ex) { delete cudaGauge_ex; cudaGauge_ex = NULL;}
 
   param_ex.precision = gaugeParam_ex.cuda_prec;
-  param_ex.reconstruct = QUDA_RECONSTRUCT_12;
+  param_ex.reconstruct = QUDA_RECONSTRUCT_NO;
   cudaGaugeComp_ex = new cudaGaugeField(param_ex);
 
  
@@ -700,7 +668,7 @@ qudaHisqForce(
   timer.check(); 
 #endif
   // Compute Fat7-staple term 
-  gaugeParam.reconstruct = QUDA_RECONSTRUCT_12;
+  gaugeParam.reconstruct = QUDA_RECONSTRUCT_NO;
 
   hisqStaplesForceCuda(fat7_act_path_coeff, gaugeParam, *cudaInForce_ex, *cudaGaugeComp_ex, cudaOutForce_ex);
 #ifdef TIME_INTERFACE

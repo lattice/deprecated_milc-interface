@@ -2,6 +2,7 @@
 #define _QUDA_MILC_INTERFACE_H
 
 #include <enum_quda.h>
+#include <quda.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,7 +54,7 @@ extern "C" {
   void qudaHisqParamsInit(QudaHisqParams_t hisq_params);
 
 
-  void qudaLoadFatLink(int precision, QudaFatLinkArgs_t fatlink_args, const double act_path_coeff[6], void* inlink, void* outlink);
+  void qudaLoadKSLink(int precision, QudaFatLinkArgs_t fatlink_args, const double act_path_coeff[6], void* inlink, void* fatlink, void* longlink);
 
 
   void qudaLoadUnitarizedLink(int precision, QudaFatLinkArgs_t fatlink_args, const double path_coeff[6], void* inlink, void* fatlink, void* ulink);
@@ -67,6 +68,7 @@ extern "C" {
       double target_relresid,
       const void* const milc_fatlink,
       const void* const milc_longlink,
+      const double tadpole,
       void* source,
       void* solution,
       double* const final_resid,
@@ -103,6 +105,7 @@ extern "C" {
       const double* target_relative_residual,
       const void* const milc_fatlink,
       const void* const milc_longlink,
+      const double tadpole,
       void* source,
       void** solutionArray, 
       double* const final_residual,
@@ -128,6 +131,22 @@ extern "C" {
       );
 
 
+  void qudaCloverMultishiftInvert(int external_precision, 
+      int quda_precision,
+      int num_offsets,
+      double* const offset,
+      double kappa,
+      QudaInvertArgs_t inv_args,
+      const double* target_residual,
+      const void* milc_link,
+      void* milc_clover, 
+      void* milc_clover_inv,
+      void* source,
+      void** solutionArray,
+      double* const final_residual, 
+      int* num_iters
+      );
+
   void qudaHisqForce(
       int precision,
       const double level2_coeff[6],
@@ -138,6 +157,15 @@ extern "C" {
       const void* const w_link,
       const void* const v_link,
       const void* const u_link,
+      void* const milc_momentum);
+
+
+  void qudaAsqtadForce(
+      int precision,
+      const double act_path_coeff[6],
+      const void* const one_link_src[4],
+      const void* const naik_src[4],
+      const void* const link,
       void* const milc_momentum);
 
 
@@ -157,7 +185,26 @@ extern "C" {
       void* const one_link_src[4], 
       void* const three_link_src[4]);
 
+  void qudaComputeOprod(int precision,
+                        int num_terms,
+                        double** coeff,
+                        void** quark_field,
+                        void* oprod[2]);
 
+
+  void qudaUpdateU(int precision, 
+                   double eps,
+                   void* momentum, 
+                   void* link);
+
+
+  void qudaCloverDerivative(void* out, void* gauge, void* oprod, 
+                            int mu, int nu, int precision, int parity, int conjugate);
+
+
+  void* qudaCreateExtendedGaugeField(void* gauge, int geometry, int precision);
+
+  void qudaDestroyGaugeField(void* gauge);
 
 #ifdef __cplusplus
 }

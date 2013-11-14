@@ -29,6 +29,13 @@
 
 namespace milc_interface {
 
+  static bool invalidate_quda_gauge = true;
+
+  void invalidateGaugeQuda() { 
+    freeGaugeQuda();
+    invalidate_quda_gauge = true; 
+  }
+
   // Need to figure out if this is needed anymore
   static void
     setDimConstants(const int X[4])
@@ -81,6 +88,7 @@ void qudaMultishiftInvert(int external_precision,
     const double target_fermilab_residual[],
     const void* const fatlink,
     const void* const longlink,
+    const double tadpole,
     void* source,
     void** solutionArray,
     double* const final_residual,
@@ -133,7 +141,7 @@ void qudaMultishiftInvert(int external_precision,
 
   QudaGaugeParam gaugeParam = newQudaGaugeParam();
   // a basic set routine for the gauge parameters
-  setGaugeParams(local_dim, host_precision, device_precision, device_precision_sloppy, device_precision_precondition, &gaugeParam);
+  setGaugeParams(local_dim, host_precision, device_precision, device_precision_sloppy, device_precision_precondition, tadpole, &gaugeParam);
 
   QudaInvertParam invertParam = newQudaInvertParam();
   invertParam.residual_type = (target_fermilab_residual[0] != 0) ? QUDA_HEAVY_QUARK_RESIDUAL : QUDA_L2_RELATIVE_RESIDUAL;
@@ -164,26 +172,30 @@ void qudaMultishiftInvert(int external_precision,
 
   const QudaPrecision milc_precision = (external_precision==2) ? QUDA_DOUBLE_PRECISION : QUDA_SINGLE_PRECISION;
 
-
+  if (milc_interface::invalidate_quda_gauge) {
 #ifdef MULTI_GPU
-  const int fat_pad  = getFatLinkPadding(local_dim);
-  gaugeParam.type = QUDA_GENERAL_LINKS;
-  gaugeParam.ga_pad = fat_pad;  // don't know if this is correct
-  gaugeParam.reconstruct = gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
-  loadGaugeQuda(const_cast<void*>(fatlink), &gaugeParam); 
-
-  const int long_pad = 3*fat_pad;
-  gaugeParam.type = QUDA_THREE_LINKS;
-  gaugeParam.ga_pad = long_pad; // don't know if this will work
-  loadGaugeQuda(const_cast<void*>(longlink), &gaugeParam);
+    const int fat_pad  = getFatLinkPadding(local_dim);
+    gaugeParam.type = QUDA_GENERAL_LINKS;
+    gaugeParam.ga_pad = fat_pad;  // don't know if this is correct
+    gaugeParam.reconstruct = gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
+    loadGaugeQuda(const_cast<void*>(fatlink), &gaugeParam); 
+    
+    const int long_pad = 3*fat_pad;
+    gaugeParam.type = QUDA_THREE_LINKS;
+    gaugeParam.ga_pad = long_pad; // don't know if this will work
+    loadGaugeQuda(const_cast<void*>(longlink), &gaugeParam);
 #else // single-gpu code
-  gaugeParam.type = QUDA_GENERAL_LINKS;
-  gaugeParam.reconstruct = gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
-  loadGaugeQuda(const_cast<void*>(fatlink), &gaugeParam);
-
-  gaugeParam.type = QUDA_THREE_LINKS;
-  loadGaugeQuda(const_cast<void*>(longlink), &gaugeParam);
+    gaugeParam.type = QUDA_GENERAL_LINKS;
+    gaugeParam.reconstruct = gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
+    loadGaugeQuda(const_cast<void*>(fatlink), &gaugeParam);
+    
+    gaugeParam.type = QUDA_ASQTAD_LONG_LINKS;
+    gaugeParam.reconstruct = QUDA_RECONSTRUCT_NO;
+    gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
+    loadGaugeQuda(const_cast<void*>(longlink), &gaugeParam);
 #endif
+    milc_interface::invalidate_quda_gauge = false;
+  }
 
   int volume=1;
   for(int dir=0; dir<4; ++dir) volume *= gaugeParam.X[dir];
@@ -213,7 +225,8 @@ void qudaMultishiftInvert(int external_precision,
     final_residual[i] = invertParam.true_res_offset[i];
     final_fermilab_residual[i] = invertParam.true_res_hq_offset[i];
   } // end loop over number of offsets
-  freeGaugeQuda(); // free up the gauge-field objects allocated
+
+  //freeGaugeQuda(); // free up the gauge-field objects allocated
   return;
 } // qudaMultiShiftInvert
 
@@ -228,6 +241,7 @@ void qudaInvert(int external_precision,
     double target_fermilab_residual,
     const void* const fatlink,
     const void* const longlink,
+    const double tadpole,
     void* source,
     void* solution,
     double* const final_residual,
@@ -259,7 +273,7 @@ void qudaInvert(int external_precision,
   const bool use_mixed_precision = ((quda_precision==2) && inv_args.mixed_precision) ? true : false;
   PersistentData pd;
   //static const QudaVerbosity verbosity = pd.getVerbosity();
-  static const QudaVerbosity verbosity = QUDA_VERBOSE;
+  static const QudaVerbosity verbosity = QUDA_SUMMARIZE;
 
 
   if(verbosity >= QUDA_VERBOSE){
@@ -286,7 +300,7 @@ void qudaInvert(int external_precision,
 
   QudaGaugeParam gaugeParam = newQudaGaugeParam();
   // a basic set routine for the gauge parameters
-  setGaugeParams(local_dim, host_precision, device_precision, device_precision_sloppy, device_precision_precondition, &gaugeParam);
+  setGaugeParams(local_dim, host_precision, device_precision, device_precision_sloppy, device_precision_precondition, tadpole, &gaugeParam);
 
   QudaInvertParam invertParam = newQudaInvertParam();
   invertParam.residual_type = (target_residual != 0) ? QUDA_L2_RELATIVE_RESIDUAL : QUDA_HEAVY_QUARK_RESIDUAL;
@@ -323,23 +337,28 @@ void qudaInvert(int external_precision,
   const int long_pad = 3*fat_pad;
 
   // No mixed precision here, it seems
+  if (milc_interface::invalidate_quda_gauge) {
 #ifdef MULTI_GPU
-  gaugeParam.type = QUDA_GENERAL_LINKS;
-  gaugeParam.ga_pad = fat_pad; 
-  gaugeParam.reconstruct = gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
-  loadGaugeQuda(const_cast<void*>(fatlink), &gaugeParam); 
-
-  gaugeParam.type = QUDA_THREE_LINKS;
-  gaugeParam.ga_pad = long_pad; 
-  loadGaugeQuda(const_cast<void*>(longlink), &gaugeParam);
+    gaugeParam.type = QUDA_GENERAL_LINKS;
+    gaugeParam.ga_pad = fat_pad; 
+    gaugeParam.reconstruct = gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
+    loadGaugeQuda(const_cast<void*>(fatlink), &gaugeParam); 
+    
+    gaugeParam.type = QUDA_THREE_LINKS;
+    gaugeParam.ga_pad = long_pad; 
+    loadGaugeQuda(const_cast<void*>(longlink), &gaugeParam);
 #else // single-gpu code
-  gaugeParam.type = QUDA_GENERAL_LINKS;
-  gaugeParam.reconstruct = gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
-  loadGaugeQuda(const_cast<void*>(fatlink), &gaugeParam);
-
-  gaugeParam.type = QUDA_THREE_LINKS;
-  loadGaugeQuda(const_cast<void*>(longlink), &gaugeParam);
+    gaugeParam.type = QUDA_GENERAL_LINKS;
+    gaugeParam.reconstruct = gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
+    loadGaugeQuda(const_cast<void*>(fatlink), &gaugeParam);
+    
+    gaugeParam.type = QUDA_THREE_LINKS;
+    gaugeParam.reconstruct = QUDA_RECONSTRUCT_NO;
+    gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
+    loadGaugeQuda(const_cast<void*>(longlink), &gaugeParam);
 #endif
+    milc_interface::invalidate_quda_gauge = false;
+  }
 
   int volume=1;
   for(int dir=0; dir<4; ++dir) volume *= gaugeParam.X[dir];
@@ -366,7 +385,7 @@ void qudaInvert(int external_precision,
   *final_residual = invertParam.true_res;
   *final_fermilab_residual = invertParam.true_res_hq;
 
-  freeGaugeQuda(); // free up the gauge-field objects allocated
+  //freeGaugeQuda(); // free up the gauge-field objects allocated
   // in loadGaugeQuda        
 
   return;
