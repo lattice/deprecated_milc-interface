@@ -6,11 +6,11 @@
 #include "include/milc_utilities.h"
 #include "external_headers/quda_milc_interface.h"
 
-static void 
+  static void 
 setGaugeParams(QudaGaugeParam* gaugeParam,
-              const int dim[4],
-              QudaPrecision precision,
-              QudaReconstructType recon = QUDA_RECONSTRUCT_NO)
+    const int dim[4],
+    QudaPrecision precision,
+    QudaReconstructType recon = QUDA_RECONSTRUCT_NO)
 {
   for(int dir=0; dir<4; ++dir) gaugeParam->X[dir] = dim[dir];
 
@@ -38,7 +38,7 @@ setGaugeParams(QudaGaugeParam* gaugeParam,
 void*  qudaCreateExtendedGaugeField(void* gauge, int geometry, int precision)
 {
   using namespace milc_interface;
- 
+
   QudaPrecision qudaPrecision = (precision==2) ? QUDA_DOUBLE_PRECISION : QUDA_SINGLE_PRECISION; 
   QudaGaugeParam gaugeParam = newQudaGaugeParam();
   Layout layout;
@@ -51,9 +51,46 @@ void*  qudaCreateExtendedGaugeField(void* gauge, int geometry, int precision)
   }else if(geometry == 4){
     gaugeParam.type = QUDA_SU3_LINKS;
   }
-  
+
   return createExtendedGaugeField(gauge, geometry, &gaugeParam);
 }
+
+void* qudaCreateGaugeField(void* gauge, int geometry, int precision)
+{
+  using namespace milc_interface;
+
+  QudaPrecision qudaPrecision = (precision==2) ? QUDA_DOUBLE_PRECISION : QUDA_SINGLE_PRECISION;
+  QudaGaugeParam gaugeParam = newQudaGaugeParam();
+  Layout layout;
+  const int* dim = layout.getLocalDim();
+  setGaugeParams(&gaugeParam, dim, qudaPrecision);
+
+
+  if(geometry == 1){
+    gaugeParam.type = QUDA_GENERAL_LINKS;
+  }else if(geometry == 4){
+    gaugeParam.type = QUDA_SU3_LINKS;
+  }
+
+  return createGaugeField(gauge, geometry, &gaugeParam);
+}
+
+void qudaSaveGaugeField(void* gauge, void* inGauge)
+{
+  using namespace quda;
+  using namespace milc_interface;
+  cudaGaugeField* cudaGauge = reinterpret_cast<cudaGaugeField*>(inGauge);
+
+  QudaGaugeParam gaugeParam = newQudaGaugeParam();
+  Layout layout;
+  const int* dim = layout.getLocalDim();
+  setGaugeParams(&gaugeParam, dim, cudaGauge->Precision());
+
+  gaugeParam.type = QUDA_GENERAL_LINKS;
+  
+  saveGaugeField(gauge, inGauge, &gaugeParam);
+}
+
 
 void qudaDestroyGaugeField(void* gauge)
 {
@@ -66,28 +103,33 @@ void qudaDestroyGaugeField(void* gauge)
 
 
 
-void qudaCloverDerivative(void* out, void* gauge, void* oprod, int mu, int nu, int precision, int parity, int conjugate)
+void qudaCloverDerivative(void* out, void* gauge, void* oprod, int mu, int nu, double coeff, int precision, int parity, int conjugate)
 {
 
   using namespace milc_interface;
 
   QudaParity qudaParity = (parity==2) ? QUDA_EVEN_PARITY : QUDA_ODD_PARITY;
   QudaPrecision qudaPrecision = (precision==2) ? QUDA_DOUBLE_PRECISION : QUDA_SINGLE_PRECISION;
-  
+
   QudaGaugeParam gaugeParam = newQudaGaugeParam();
-  
+
   Layout layout;
 
   const int* dim = layout.getLocalDim();
   setGaugeParams(&gaugeParam, dim, qudaPrecision);
 
-//  void* gPointer = qudaCreateExtendedGaugeField(gauge, 4, precision);
-//  void* oPointer = qudaCreateExtendedGaugeField(oprod, 1, precision);
 
-  computeCloverDerivativeQuda(out, gauge, oprod, mu, nu, qudaParity, &gaugeParam, conjugate);
+  //  void* outPointer = qudaCreateGaugeField(NULL, 1, precision);
+  //  void* gPointer = qudaCreateExtendedGaugeField(gauge, 4, precision);
+  //  void* oPointer = qudaCreateExtendedGaugeField(oprod, 1, precision);
 
-//  qudaDestroyGaugeField(gPointer);
-//  qudaDestroyGaugeField(oPointer);
+  //computeCloverDerivativeQuda(outPointer, gauge, oprod, mu, nu, coeff, qudaParity, &gaugeParam, conjugate);
+  computeCloverDerivativeQuda(out, gauge, oprod, mu, nu, coeff, qudaParity, &gaugeParam, conjugate);
+
+  //  qudaDestroyGaugeField(gPointer);
+  //  qudaDestroyGaugeField(oPointer);
+  //  qudaSaveGaugeField(out, outPointer);
+  //  qudaDestroyGaugeField(outPointer);
 
   return;
 }

@@ -117,6 +117,7 @@ extern "C" {
   void qudaCloverInvert(int external_precision, 
       int quda_precision,
       double kappa,
+      double clover_coeff,
       QudaInvertArgs_t inv_args,
       double target_residual,
       double target_fermilab_residual,
@@ -144,6 +145,7 @@ extern "C" {
 			   void* milc_clover_inv,
 			   QudaSolutionType solution_type,
 			   QudaSolveType solve_type,
+                           double clover_coeff,
 			   int compute_trlog,
 			   double *trlog) ;
 
@@ -154,6 +156,7 @@ extern "C" {
       int num_offsets,
       double* const offset,
       double kappa,
+      double clover_coeff,
       QudaInvertArgs_t inv_args,
       const double* target_residual,
       const void* milc_link,
@@ -170,6 +173,7 @@ extern "C" {
       int num_offsets,
       double* const offset,
       double kappa,
+      double clover_coeff,
       QudaInvertArgs_t inv_args,
       const double* target_residual,
       const void* milc_link,
@@ -236,10 +240,16 @@ extern "C" {
 
 
   void qudaCloverDerivative(void* out, void* gauge, void* oprod, 
-                            int mu, int nu, int precision, int parity, int conjugate);
+                            int mu, int nu, double coeff, int precision, int parity, int conjugate);
 
 
   void* qudaCreateExtendedGaugeField(void* gauge, int geometry, int precision);
+
+  void* qudaCreateGaugeField(void* gauge, int geometry, int precision);
+
+  void qudaSaveGaugeField(void* gauge, void* inGauge);
+
+
 
   void qudaDestroyGaugeField(void* gauge);
 
