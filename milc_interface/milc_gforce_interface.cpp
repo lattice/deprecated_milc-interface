@@ -114,17 +114,22 @@ namespace milc_interface {
         QudaReconstructType link_recon = QUDA_RECONSTRUCT_12
         )
     {
+      *gaugeParam = newQudaGaugeParam();
+
       for(int dir=0; dir<4; ++dir){
         gaugeParam->X[dir] = dim[dir];
       }
       gaugeParam->cpu_prec = cpu_prec;
       gaugeParam->cuda_prec = cuda_prec;
+      gaugeParam->cuda_prec_sloppy = gaugeParam->cuda_prec;
       gaugeParam->reconstruct = link_recon;
+      gaugeParam->reconstruct_sloppy = gaugeParam->reconstruct;
       gaugeParam->type = QUDA_SU3_LINKS;
       gaugeParam->gauge_order = QUDA_MILC_GAUGE_ORDER;
       gaugeParam->anisotropy = 1.0;
       gaugeParam->tadpole_coeff = 1.0;
       gaugeParam->gauge_fix     = QUDA_GAUGE_FIXED_NO;
+      gaugeParam->t_boundary = QUDA_PERIODIC_T; // FIXME so can use for anti-periodic fields
 
 #ifdef MULTI_GPU
       int x_face_size = gaugeParam->X[1]*gaugeParam->X[2]*gaugeParam->X[3]/2;
@@ -138,7 +143,6 @@ namespace milc_interface {
 #else
       gaugeParam->ga_pad = 0;
 #endif
-
       return;
     }
 
