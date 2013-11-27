@@ -212,6 +212,7 @@ void qudaLoadCloverField(int external_precision,
 			 void* milc_clover_inv,
 			 QudaSolutionType solution_type,
 			 QudaSolveType solve_type,
+			 double clover_coeff,
 			 int compute_trlog,
 			 double *trlog) {
 
@@ -272,8 +273,10 @@ void qudaCloverInvert(int external_precision,
   }
   
   qudaLoadGaugeField(external_precision, quda_precision, inv_args, link);
+
+  double clover_coeff = 0.0;
   qudaLoadCloverField(external_precision, quda_precision, inv_args, clover, cloverInverse,
-		      QUDA_MAT_SOLUTION, QUDA_DIRECT_PC_SOLVE, 0, 0);
+		      QUDA_MAT_SOLUTION, QUDA_DIRECT_PC_SOLVE, clover_coeff, 0, 0);
 
   QudaInvertParam invertParam = newQudaInvertParam();
   setInvertParam(invertParam, inv_args, external_precision, quda_precision, kappa);
@@ -303,6 +306,7 @@ void qudaCloverMultishiftInvert(int external_precision,
 				int num_offsets,
 				double* const offset,
 				double kappa,
+				double clover_coeff,
 				QudaInvertArgs_t inv_args,
 				const double* target_residual_offset,
 				const void* milc_link,
@@ -352,6 +356,7 @@ void qudaCloverMultishiftMDInvert(int external_precision,
 				int num_offsets,
 				double* const offset,
 				double kappa,
+				double clover_coeff,
 				QudaInvertArgs_t inv_args,
 				const double* target_residual_offset,
 				const void* milc_link,
