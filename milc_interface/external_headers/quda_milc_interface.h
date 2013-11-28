@@ -238,6 +238,8 @@ extern "C" {
                    void* momentum, 
                    void* link);
 
+ void qudaCloverTrace(void* out, void* clover, int mu, int nu);
+
 
   void qudaCloverDerivative(void* out, void* gauge, void* oprod, 
                             int mu, int nu, double coeff, int precision, int parity, int conjugate);
@@ -249,6 +251,7 @@ extern "C" {
 
   void qudaSaveGaugeField(void* gauge, void* inGauge);
 
+  
 
 
   void qudaDestroyGaugeField(void* gauge);
