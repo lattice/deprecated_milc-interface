@@ -35,7 +35,7 @@ setGaugeParams(QudaGaugeParam* gaugeParam,
   return;
 }
 
-void* qudaCreateExtendedGaugeField(void* gauge, int geometry, int precision)
+void*  qudaCreateExtendedGaugeField(void* gauge, int geometry, int precision)
 {
   using namespace milc_interface;
 
@@ -54,28 +54,6 @@ void* qudaCreateExtendedGaugeField(void* gauge, int geometry, int precision)
 
   return createExtendedGaugeField(gauge, geometry, &gaugeParam);
 }
-
-/*
-void* qudaCreateExtendedField(void* gauge, int geometry, int precision)
-{
-  using namespace milc_interface;
-
-  QudaPrecision qudaPrecision = (precision==2) ? QUDA_DOUBLE_PRECISION : QUDA_SINGLE_PRECISION; 
-  QudaGaugeParam gaugeParam = newQudaGaugeParam();
-  Layout layout;
-  const int* dim = layout.getLocalDim();
-  setGaugeParams(&gaugeParam, dim, qudaPrecision);
-
-  if(geometry == 1){
-    gaugeParam.type = QUDA_GENERAL_LINKS;
-  }else if(geometry == 4){
-    gaugeParam.type = QUDA_SU3_LINKS;
-  }
-
-  return createExtendedField(gauge, geometry, &gaugeParam);
-}
-*/
-
 
 void* qudaCreateGaugeField(void* gauge, int geometry, int precision)
 {
@@ -119,6 +97,19 @@ void qudaDestroyGaugeField(void* gauge)
   using namespace milc_interface;
 
   destroyQudaGaugeField(gauge);
+
+  return;
+}
+
+
+
+void qudaCloverTrace(void* out, void* clover, int mu, int nu)
+{
+  using namespace milc_interface;
+  Layout layout;
+  const int* dim = layout.getLocalDim();
+
+  computeCloverTraceQuda(out, clover, mu, nu, const_cast<int*>(dim));
 
   return;
 }
