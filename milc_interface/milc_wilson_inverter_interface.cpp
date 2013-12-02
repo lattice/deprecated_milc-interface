@@ -224,6 +224,8 @@ void qudaLoadCloverField(int external_precision,
   invertParam.solve_type = solve_type;
   invertParam.matpc_type = QUDA_MATPC_EVEN_EVEN_ASYMMETRIC;
   invertParam.compute_clover_trlog = compute_trlog;
+  invertParam.clover_coeff = clover_coeff;
+
   if(invertParam.dslash_type == QUDA_CLOVER_WILSON_DSLASH) {
     if (clover_alloc == 0) {
       loadCloverQuda(milc_clover, milc_clover_inv, &invertParam);
@@ -263,6 +265,7 @@ void qudaCloverInvert(int external_precision,
 		      int* num_iters)
 {
   using namespace milc_interface;
+
 
   if(target_fermilab_residual !=0 && target_residual != 0){
     errorQuda("qudaCloverInvert: conflicting residuals requested\n");
@@ -319,6 +322,8 @@ void qudaCloverMultishiftInvert(int external_precision,
 {
   using namespace milc_interface;
 
+ 
+
   for(int i=0; i<num_offsets; ++i){
     if(target_residual_offset[i] == 0){
       errorQuda("qudaMultishiftInvert: target residual cannot be zero\n");
@@ -335,6 +340,7 @@ void qudaCloverMultishiftInvert(int external_precision,
     invertParam.tol_offset[i] = target_residual_offset[i];
   }
   invertParam.tol = target_residual_offset[0];
+  invertParam.clover_coeff = clover_coeff;
 
   // solution types
   invertParam.solution_type      = QUDA_MATPCDAG_MATPC_SOLUTION;
@@ -388,6 +394,7 @@ void qudaCloverMultishiftMDInvert(int external_precision,
     invertParam.tol_offset[i] = target_residual_offset[i];
   }
   invertParam.tol = target_residual_offset[0];
+  invertParam.clover_coeff = clover_coeff;
 
   // solution types
   invertParam.solution_type      = QUDA_MATPCDAG_MATPC_SOLUTION;
