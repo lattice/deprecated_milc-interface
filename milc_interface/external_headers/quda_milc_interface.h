@@ -245,7 +245,7 @@ extern "C" {
                             int mu, int nu, double coeff, int precision, int parity, int conjugate);
 
 
-  void* qudaCreateExtendedGaugeField(void* gauge, int geometry, int precision);
+  void* qudaCreateExtendedGaugeField(void* gauge, int geometry, int precision, int resident);
 
   void* qudaCreateGaugeField(void* gauge, int geometry, int precision);
 

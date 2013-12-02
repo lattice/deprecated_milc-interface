@@ -35,7 +35,7 @@ setGaugeParams(QudaGaugeParam* gaugeParam,
   return;
 }
 
-void*  qudaCreateExtendedGaugeField(void* gauge, int geometry, int precision)
+void*  qudaCreateExtendedGaugeField(void* gauge, int geometry, int precision, int resident)
 {
   using namespace milc_interface;
 
@@ -45,6 +45,7 @@ void*  qudaCreateExtendedGaugeField(void* gauge, int geometry, int precision)
   const int* dim = layout.getLocalDim();
   setGaugeParams(&gaugeParam, dim, qudaPrecision);
 
+  gaugeParam.preserve_gauge = resident ? 1 : 0;
 
   if(geometry == 1){
     gaugeParam.type = QUDA_GENERAL_LINKS;
