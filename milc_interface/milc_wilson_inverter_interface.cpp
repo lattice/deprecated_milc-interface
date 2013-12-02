@@ -113,6 +113,9 @@ void setGaugeParam(QudaGaugeParam &gaugeParam, QudaInvertArgs_t &inv_args,
     gaugeParam.reconstruct              = QUDA_RECONSTRUCT_NO;
     gaugeParam.reconstruct_sloppy       = QUDA_RECONSTRUCT_NO;
   }
+  // FIXME work around for T partitioing bug with anti-periodic
+  // boundary conditions with reconstruct in GaugeFieldOrder
+  gaugeParam.reconstruct              = QUDA_RECONSTRUCT_NO;
   
   gaugeParam.cpu_prec                 = host_precision;
   gaugeParam.cuda_prec                = device_precision;
