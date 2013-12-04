@@ -45,7 +45,7 @@ void*  qudaCreateExtendedGaugeField(void* gauge, int geometry, int precision, in
   const int* dim = layout.getLocalDim();
   setGaugeParams(&gaugeParam, dim, qudaPrecision);
 
-  gaugeParam.preserve_gauge = resident ? 1 : 0;
+  gaugeParam.use_resident_gauge = resident ? 1 : 0;
 
   if(geometry == 1){
     gaugeParam.type = QUDA_GENERAL_LINKS;
