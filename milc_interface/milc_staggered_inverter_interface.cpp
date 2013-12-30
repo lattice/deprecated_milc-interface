@@ -183,6 +183,7 @@ void qudaMultishiftInvert(int external_precision,
     const int long_pad = 3*fat_pad;
     gaugeParam.type = QUDA_THREE_LINKS;
     gaugeParam.ga_pad = long_pad; // don't know if this will work
+    gaugeParam.reconstruct = gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_13;
     loadGaugeQuda(const_cast<void*>(longlink), &gaugeParam);
 #else // single-gpu code
     gaugeParam.type = QUDA_GENERAL_LINKS;
@@ -190,8 +191,8 @@ void qudaMultishiftInvert(int external_precision,
     loadGaugeQuda(const_cast<void*>(fatlink), &gaugeParam);
     
     gaugeParam.type = QUDA_ASQTAD_LONG_LINKS;
-    gaugeParam.reconstruct = QUDA_RECONSTRUCT_NO;
-    gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
+    gaugeParam.reconstruct = QUDA_RECONSTRUCT_13;
+    gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_13;
     loadGaugeQuda(const_cast<void*>(longlink), &gaugeParam);
 #endif
     milc_interface::invalidate_quda_gauge = false;
@@ -346,6 +347,7 @@ void qudaInvert(int external_precision,
     
     gaugeParam.type = QUDA_THREE_LINKS;
     gaugeParam.ga_pad = long_pad; 
+    gaugeParam.reconstruct = gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_13;
     loadGaugeQuda(const_cast<void*>(longlink), &gaugeParam);
 #else // single-gpu code
     gaugeParam.type = QUDA_GENERAL_LINKS;
@@ -353,8 +355,8 @@ void qudaInvert(int external_precision,
     loadGaugeQuda(const_cast<void*>(fatlink), &gaugeParam);
     
     gaugeParam.type = QUDA_THREE_LINKS;
-    gaugeParam.reconstruct = QUDA_RECONSTRUCT_NO;
-    gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
+    gaugeParam.reconstruct = QUDA_RECONSTRUCT_13;
+    gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_13;
     loadGaugeQuda(const_cast<void*>(longlink), &gaugeParam);
 #endif
     milc_interface::invalidate_quda_gauge = false;

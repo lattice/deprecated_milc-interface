@@ -151,7 +151,8 @@ namespace milc_interface {
     gaugeParam->t_boundary = QUDA_PERIODIC_T; // anti-periodic boundary conditions are built into the gauge field
     gaugeParam->gauge_order = QUDA_MILC_GAUGE_ORDER; 
     gaugeParam->ga_pad = dim[0]*dim[1]*dim[2]/2;
-    gaugeParam->scale = -1.0/(24.0*gaugeParam->tadpole_coeff*gaugeParam->tadpole_coeff);
+    //gaugeParam->scale = -1.0/(24.0*gaugeParam->tadpole_coeff*gaugeParam->tadpole_coeff);
+    gaugeParam->scale = -1.0/(24.0);
     
 
     // preconditioning...
