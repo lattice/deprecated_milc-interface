@@ -1,3 +1,2 @@
-
-This package provides an interface layer for using QUDA from MILC.
+Historically this was required to use QUDA from MILC. This functionality has now been integrated into QUDA.
 
